@@ -39,6 +39,7 @@ all:         $(OBJS)
 	@$(CD) $(FE)/element/twoNodeLink; $(MAKE);
 	@$(CD) $(FE)/element/pyMacro; $(MAKE);
 	@$(CD) $(FE)/element/surfaceLoad; $(MAKE);
+	@$(CD) $(FE)/element/lineLoad; $(MAKE);
 	@$(CD) $(FE)/element/UWelements; $(MAKE);
 	@$(CD) $(FE)/element/XMUelements; $(MAKE);
 	@$(CD) $(FE)/element/HUelements; $(MAKE);
@@ -92,6 +93,7 @@ spotless: clean
 	@$(CD) $(FE)/element/frictionBearing; $(MAKE) wipe;
 	@$(CD) $(FE)/element/pyMacro; $(MAKE) wipe;
 	@$(CD) $(FE)/element/surfaceLoad; $(MAKE) wipe;
+	@$(CD) $(FE)/element/lineLoad; $(MAKE) wipe;
 	@$(CD) $(FE)/element/UWelements; $(MAKE) wipe;
 	@$(CD) $(FE)/element/XMUelements; $(MAKE) wipe;
 	@$(CD) $(FE)/element/HUelements; $(MAKE) wipe;

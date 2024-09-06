@@ -1933,6 +1933,7 @@ PVDRecorder::setVTKType()
     vtktypes[ELE_TAG_SimpleContact3D] = VTK_POLY_VERTEX;
     vtktypes[ELE_TAG_BeamContact3D] = VTK_POLY_VERTEX;
     vtktypes[ELE_TAG_SurfaceLoad] = VTK_QUAD;
+    vtktypes[ELE_TAG_LineLoad] = VTK_LINE;
     vtktypes[ELE_TAG_BeamContact2D] = VTK_POLY_VERTEX;
     vtktypes[ELE_TAG_BeamEndContact3D] = VTK_POLY_VERTEX;
     vtktypes[ELE_TAG_SSPquad] = VTK_QUAD;

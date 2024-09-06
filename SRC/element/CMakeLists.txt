@@ -65,6 +65,7 @@ add_subdirectory(elastomericBearing)
 add_subdirectory(generic)
 add_subdirectory(joint)
 add_subdirectory(surfaceLoad)
+add_subdirectory(lineLoad)
 
 add_subdirectory(feap)
 

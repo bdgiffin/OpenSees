@@ -625,6 +625,7 @@
 #define LOAD_TAG_ThermalActionWrapper     16 //L.Jiang [ SIF ]
 #define LOAD_TAG_LysmerVelocityLoader      17  //Jose Abell (UANDES)
 #define LOAD_TAG_IGAFollowerLoad      18  //Jose Abell (UANDES)
+#define LOAD_TAG_LineLoader           19 // Brian Giffin (OSU)
 
 
 #define MAT_TAG_IsotropicLinElastic         1001
@@ -889,6 +890,7 @@
 #define ELE_TAG_FSIInterfaceElement2D      266  // Massimo Petracca (ASDEA)
 #define ELE_TAG_FSIFluidBoundaryElement2D  267  // Massimo Petracca (ASDEA)
 #define ELE_TAG_ShellNLDKGTThermal		   268 // Giovanni Rinaldin
+#define ELE_TAG_LineLoad                   269  // Brian Giffin (OSU)
 
 
 #define FRN_TAG_Coulomb            1

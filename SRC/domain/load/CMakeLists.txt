@@ -19,6 +19,7 @@ target_sources(OPS_Domain
     Beam3dPartialUniformLoad.cpp
     BrickSelfWeight.cpp
     SurfaceLoader.cpp
+    LineLoader.cpp
     SelfWeight.cpp
     LysmerVelocityLoader.cpp
     PUBLIC
@@ -34,6 +35,7 @@ target_sources(OPS_Domain
     Beam3dPartialUniformLoad.h
     BrickSelfWeight.h
     SurfaceLoader.h
+    LineLoader.h
     SelfWeight.h
     LysmerVelocityLoader.h
 )

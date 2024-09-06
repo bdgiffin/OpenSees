@@ -129,7 +129,8 @@ void* OPS_SSPquadUP();
 void* OPS_SSPbrick();
 void* OPS_SSPbrickUP();
 void* OPS_SurfaceLoad();
-void* OPS_TriSurfaceLoad();
+void* OPS_TriSurfaceLoad();;
+void* OPS_LineLoad();
 void* OPS_TPB1D();
 void* OPS_ElasticTubularJoint();
 void* OPS_FourNodeQuad3d();
@@ -779,6 +780,7 @@ namespace {
 	functionMap.insert(std::make_pair("SSPBrickUP", &OPS_SSPbrickUP));
 	functionMap.insert(std::make_pair("SurfaceLoad", &OPS_SurfaceLoad));
 	functionMap.insert(std::make_pair("TriSurfaceLoad", &OPS_TriSurfaceLoad));
+	functionMap.insert(std::make_pair("LineLoad", &OPS_LineLoad));
 	functionMap.insert(std::make_pair("elasticBeamColumn", &OPS_ElasticBeam));
 	functionMap.insert(std::make_pair("elasticBeamColumnWarping", &OPS_ElasticBeamWarping3d));
 	functionMap.insert(std::make_pair("dispBeamColumnWarping", &OPS_DispBeamColumnWarping3d));	

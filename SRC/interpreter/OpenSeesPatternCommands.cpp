@@ -50,6 +50,7 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 #include <BrickSelfWeight.h>
 #include <SurfaceLoader.h>
 #include <SelfWeight.h>
+#include <LineLoader.h>
 #include <Beam2dThermalAction.h>
 #include <Beam3dThermalAction.h>
 #include <Beam2dTempLoad.h>
@@ -491,6 +492,31 @@ int OPS_ElementalLoad()
 
 	for (int i=0; i<theEleTags.Size(); i++) {
 	    theLoad = new SurfaceLoader(eleLoadTag, theEleTags(i));
+
+	    if (theLoad == 0) {
+		opserr << "WARNING eleLoad - out of memory creating load of type " << type;
+		return -1;
+	    }
+
+	    // get the current pattern tag if no tag given in i/p
+	    int loadPatternTag = theActiveLoadPattern->getTag();
+
+	    // add the load to the domain
+	    if (theDomain->addElementalLoad(theLoad, loadPatternTag) == false) {
+		opserr << "WARNING eleLoad - could not add following load to domain:\n ";
+		opserr << theLoad;
+		delete theLoad;
+		return -1;
+	    }
+	    eleLoadTag++;
+	}
+	return 0;
+    }
+    // Added: B.Giffn & H.Poudel, Oklahoma State University
+    else if (strcmp(type,"-lineLoad") == 0 || strcmp(type,"-LineLoad") == 0) {
+
+	for (int i=0; i<theEleTags.Size(); i++) {
+	    theLoad = new LineLoader(eleLoadTag, theEleTags(i));
 
 	    if (theLoad == 0) {
 		opserr << "WARNING eleLoad - out of memory creating load of type " << type;

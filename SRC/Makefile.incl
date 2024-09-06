@@ -106,6 +106,7 @@ FE_INCLUDES  = -I$(FE)/matrix \
             -I$(FE)/element/absorbentBoundaries \
             -I$(FE)/element/UP_ucdavis \
 	       -I$(FE)/element/surfaceLoad \
+	       -I$(FE)/element/lineLoad \
                -I$(FE)/element/UP-ucsd \
                -I$(FE)/element/TotalLagrangianFD20NodeBrick \
                -I$(FE)/element/brick \

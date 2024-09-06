@@ -488,6 +488,7 @@ ELE_LIBS   =  $(FE)/element/Element.o \
 	$(FE)/element/zeroLength/ZeroLengthRocking.o \
 	$(FE)/element/surfaceLoad/SurfaceLoad.o \
 	$(FE)/element/surfaceLoad/TriSurfaceLoad.o \
+	$(FE)/element/lineLoad/LineLoad.o \
 	$(FE)/element/UWelements/SimpleContact2D.o \
 	$(FE)/element/UWelements/SimpleContact3D.o \
 	$(FE)/element/UWelements/BeamContact2D.o \
@@ -1326,6 +1327,7 @@ DOMAIN_LIBS =  $(FE)/domain/component/DomainComponent.o \
 	$(FE)/domain/load/Beam3dPointLoad.o \
 	$(FE)/domain/load/BrickSelfWeight.o \
 	$(FE)/domain/load/SurfaceLoader.o \
+	$(FE)/domain/load/LineLoader.o \
 	$(FE)/domain/load/LysmerVelocityLoader.o \
 	$(FE)/domain/load/SelfWeight.o \
 	$(FE)/domain/pattern/LoadPattern.o \

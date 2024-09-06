@@ -1375,6 +1375,7 @@ GmshRecorder::setGMSHType()
     gmshtypes[ELE_TAG_SimpleContact3D] = GMSH_POLY_VERTEX;
     gmshtypes[ELE_TAG_BeamContact3D] = GMSH_POLY_VERTEX;
     gmshtypes[ELE_TAG_SurfaceLoad] = GMSH_QUAD;
+    gmshtypes[ELE_TAG_LineLoad] = GMSH_LINE;
     gmshtypes[ELE_TAG_BeamContact2D] = GMSH_POLY_VERTEX;
     gmshtypes[ELE_TAG_BeamEndContact3D] = GMSH_POLY_VERTEX;
     gmshtypes[ELE_TAG_SSPquad] = GMSH_QUAD;

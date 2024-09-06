@@ -406,6 +406,7 @@
 #include "UWelements/Brick8FiberOverlay.h"
 #include "EmbeddedBeamInterfaceL.h"
 #include "SurfaceLoad.h"
+#include "LineLoad.h"
 #include "TriSurfaceLoad.h"
 
 #include "PML/PML2D.h"
@@ -583,6 +584,7 @@
 #include "BrickSelfWeight.h"
 #include "SelfWeight.h"
 #include "SurfaceLoader.h"
+#include "LineLoader.h"
 
 // matrix, vector & id header files
 #include "Matrix.h"
@@ -1022,7 +1024,10 @@ FEM_ObjectBrokerAllClasses::getNewElement(int classTag)
       return new SurfaceLoad();
 
     case ELE_TAG_TriSurfaceLoad:
-      return new TriSurfaceLoad();      
+      return new TriSurfaceLoad(); 
+
+    case ELE_TAG_LineLoad:
+      return new LineLoad();     
       
     case ELE_TAG_Quad4FiberOverlay:
       return new Quad4FiberOverlay(); //Amin Pakzad
@@ -1358,7 +1363,10 @@ FEM_ObjectBrokerAllClasses::getNewElementalLoad(int classTag)
       return new SelfWeight();
 	     
     case LOAD_TAG_SurfaceLoader:
-      return new SurfaceLoader();     	     
+      return new SurfaceLoader();  
+	     
+    case LOAD_TAG_LineLoader:
+      return new LineLoader();    	     
         
   default:
     opserr << "FEM_ObjectBrokerAllClasses::getNewNodalLoad - ";
