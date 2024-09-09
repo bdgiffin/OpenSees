@@ -33,12 +33,15 @@
 #include <NDMaterial.h>
 #include <ID.h>
 
+#include <string>
+
 class Domain;
 class Node;
 class Channel;
 class NDMaterial;
 class FEM_ObjectBroker;
 
+typedef void (*LineLoadFunct)(double* forces, const double* coordinates, int element_tag, double radius, double time);
 
 class LineLoad : public Element
 {
@@ -91,8 +94,8 @@ class LineLoad : public Element
   enum {LL_NUM_DOF = 6}; // degrees of freedom per element
   enum {LL_NUM_DDOF = 6}; // displacement degrees of freedom per element
   
-    // method to update base vector g1
-    int UpdateBase(double Xi);
+    // method to load the dynamic library line load routine
+    int dynamicLibraryLoad();
 
     ID  myExternalNodes;      // contains the tags of the end nodes
     static Matrix tangentStiffness;  // Tangent Stiffness matrix
@@ -102,16 +105,13 @@ class LineLoad : public Element
     double my_radius;       // the effective radius of the structural element
 
     Node *theNodes[LL_NUM_NODE];
-    
-    Vector g1;		          // tangent vector  = d(x_Xi)/d_xi
-
-    Vector myNI;              // shape functions
 
     Vector dcrd1;             // current coordinates of node 1
     Vector dcrd2;             // current coordinates of node 2
 
-    static double oneOverRoot3;
-    static double GsPts[2];
+    std::string libName;       // the user-defined external library name
+    void* libHandle;
+    LineLoadFunct lineLoadFunctPtr;
 
 	double mLoadFactor;       // factor from load pattern
 };

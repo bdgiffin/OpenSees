@@ -37,13 +37,11 @@
 #include <ErrorHandler.h>
 #include <NDMaterial.h>
 #include <ElementalLoad.h>
+#include <packages.h>
 
 #include <math.h>
 #include <stdlib.h>
-#include <stdio.h> 
-
-double LineLoad :: oneOverRoot3 = 1.0/sqrt(3.0);
-double LineLoad :: GsPts[2];
+#include <stdio.h>
 
 Matrix LineLoad::tangentStiffness(LL_NUM_DOF, LL_NUM_DOF);
 Vector LineLoad::internalForces(LL_NUM_DOF);
@@ -51,6 +49,9 @@ Vector LineLoad::theVector(LL_NUM_DOF);
 
 #include <elementAPI.h>
 static int num_LineLoad = 0;
+static std::string globalLoadLibName = "";
+static void* globalLoadLibPtr = nullptr;
+static LineLoadFunct globalLoadFunctPtr = nullptr;
 
 void *
 OPS_LineLoad(void)
@@ -101,29 +102,29 @@ OPS_LineLoad(void)
 LineLoad::LineLoad(int tag, int Nd1, int Nd2, double radius, const char* lib)
  :Element(tag,ELE_TAG_LineLoad),     
    myExternalNodes(LL_NUM_NODE),
-   g1(LL_NUM_NDF),
-   myNI(LL_NUM_NODE),
    dcrd1(LL_NUM_NDF),
-   dcrd2(LL_NUM_NDF)
+   dcrd2(LL_NUM_NDF),
+   libName(lib)
 {
     myExternalNodes(0) = Nd1;
     myExternalNodes(1) = Nd2;
 
-	GsPts[0] = -oneOverRoot3;
-	GsPts[1] = +oneOverRoot3;
-
     my_radius = radius;
 
 	mLoadFactor = 1.0;
+
+    int ret = dynamicLibraryLoad();
+    if (ret != 0) {
+      opserr << "WARNING could not load dynamic library function for LineLoadElement\n";
+    }
 }
 
 LineLoad::LineLoad()
   :Element(0,ELE_TAG_LineLoad),     
    	myExternalNodes(LL_NUM_NODE),
-   	g1(LL_NUM_NDF),
-   	myNI(LL_NUM_NODE),
    	dcrd1(LL_NUM_NDF),
-   	dcrd2(LL_NUM_NDF)
+        dcrd2(LL_NUM_NDF),
+        libName()
 {
 }
 
@@ -205,21 +206,36 @@ LineLoad::update(void)
 }
 
 int
-LineLoad::UpdateBase(double Xi)
-// this function calculates g1 and NI for given Xi
+LineLoad::dynamicLibraryLoad()
+// this function loads the dynamic library function for applying line loads to the member
 {
-    double oneMinusXi  = 1 - Xi;
-    double onePlusXi   = 1 + Xi;
+ 
+    // try existing loaded routine
+    if (libName == globalLoadLibName) {
 
-    // calculate vector g1
-    // g1 = d(x_Xi)/dXi
-    g1 = (dcrd2 - dcrd1) * 0.5;
+      // set the library handle and function ptr &  return it
+      libHandle = globalLoadLibPtr;
+      lineLoadFunctPtr = globalLoadFunctPtr;
+      return 0;
+      
+    }
 
-	// shape functions
-	myNI(0) = 0.5 * oneMinusXi;
-	myNI(1) = 0.5 * onePlusXi;
+    // ty to load new routine from dynamic library in load path
+    const char *libraryName  = libName.c_str();
+    const char *functionName = "OPS_ApplyLineLoad";
 
-    return 0;
+    int res = getLibraryFunction(libraryName, functionName, &libHandle, (void**)&lineLoadFunctPtr);
+
+    if (res == 0) {
+      // set the global data consistent with the newly loaded library routine
+      globalLoadLibName = libName;
+      globalLoadLibPtr = libHandle;
+      globalLoadFunctPtr = lineLoadFunctPtr;
+      return 0;
+    } else {
+      return 1;
+    }
+    
 }
 
 const Matrix &
@@ -273,47 +289,21 @@ LineLoad::getResistingForce()
 	Domain *theDomain = this->getDomain();
 	double t = theDomain->getCurrentTime();
 
-	// loop over Gauss points
-	for(int i = 0; i < 2; i++) {
-		this->UpdateBase(GsPts[i]);
-
-		// get the current position along the length of the element
-		Vector icrd = myNI(0)*dcrd1 + myNI(1)*dcrd2;
-
-		// -------------------- EXAMPLE DRAG FORCE CALCULATION -------------------- //
-
-		// set the ambient velocity and density at the current location
-		double drag_coeff = 1.0;
-		double area = 2.0*my_radius;
-		double density = 0.001;
-		Vector velocity(3);
-		double v_ref = 1.0;
-		double time_scaling = 1.0 - exp(-t);
-		velocity(0) = v_ref*time_scaling*(-icrd(1));
-		velocity(1) = v_ref*time_scaling*(+icrd(0));
-		velocity(2) = v_ref*time_scaling*(1.0 - exp(-icrd(2)));
-
-		// get the current element length and orientation vector
-		Vector lambda = 2.0*g1;
-		double length = sqrt(lambda(0)*lambda(0) + lambda(1)*lambda(1) + lambda(2)*lambda(2));
-		lambda = lambda/length;
-
-		// get the projected wind velocity, removing the axial component
-		Vector proj_velocity = velocity - lambda*(lambda(0)*velocity(0) + lambda(1)*velocity(1) + lambda(2)*velocity(2));
-		double norm_proj_vel = sqrt(proj_velocity(0)*proj_velocity(0) + proj_velocity(1)*proj_velocity(1) + proj_velocity(2)*proj_velocity(2));
-
-		// compute the total drag load
-		Vector drag_force = (0.5*density*drag_coeff*area*length*area*norm_proj_vel)*proj_velocity;
-		
-		// ------------------------------------------------------------------------ //
-
-		// loop over nodes
-		for(int j = 0; j < LL_NUM_NODE; j++) {
-			// loop over dof
-			for(int k = 0; k < LL_NUM_NDF; k++) {
-			        internalForces[j*LL_NUM_NDF+k] = internalForces[j*LL_NUM_NDF+k] - mLoadFactor*myNI(j)*drag_force(k);
-			}
-		}
+	// initialize the arrays of nodal forces and coordinates
+	double forces[LL_NUM_NODE*LL_NUM_NDF] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+	double coordinates[LL_NUM_NODE*LL_NUM_NDF] = { dcrd1(0), dcrd1(1), dcrd1(2), dcrd2(0), dcrd2(1), dcrd2(2) };
+	
+	// call the external library function to determine the resulting nodal forces applied to the element
+	lineLoadFunctPtr(&forces[0], &coordinates[0], this->getTag(), my_radius, t);
+	
+	// compute internal forces by scaling the nodal forces by the associated load factor
+	
+	// loop over nodes
+	for(int j = 0; j < LL_NUM_NODE; j++) {
+	  // loop over dof
+	  for(int k = 0; k < LL_NUM_NDF; k++) {
+	    internalForces[j*LL_NUM_NDF+k] = internalForces[j*LL_NUM_NDF+k] - mLoadFactor*forces[j*LL_NUM_NDF+k];
+	  }
 	}
 
 	return internalForces;
@@ -338,18 +328,15 @@ LineLoad::sendSelf(int commitTag, Channel &theChannel)
   // LineLoad packs its data into a Vector and sends this to theChannel
   // along with its dbTag and the commitTag passed in the arguments
 
-  static Vector data(3 + 3*LL_NUM_NDF + LL_NUM_NODE);
+  static Vector data(3 + 2*LL_NUM_NDF);
   data(0) = this->getTag();
   data(1) = my_radius;
   data(2) = mLoadFactor;
 
   for (int i = 0; i < LL_NUM_NDF; i++) {
-    data(3+             i) = g1(i);
-    data(3+1*LL_NUM_NDF+i) = dcrd1(i);
-    data(3+2*LL_NUM_NDF+i) = dcrd2(i);       
+    data(3+0*LL_NUM_NDF+i) = dcrd1(i);
+    data(3+1*LL_NUM_NDF+i) = dcrd2(i);       
   }
-  for (int i = 0; i < LL_NUM_NODE; i++)
-    data(3+3*LL_NUM_NDF+i) = myNI(i);
   
   res = theChannel.sendVector(dataTag, commitTag, data);
   if (res < 0) {
@@ -375,7 +362,7 @@ LineLoad::recvSelf(int commitTag, Channel &theChannel, FEM_ObjectBroker &theBrok
 
   // LineLoad creates a Vector, receives the Vector and then sets the 
   // internal data with the data in the Vector
-  static Vector data(3 + 3*LL_NUM_NDF + LL_NUM_NODE);
+  static Vector data(3 + 2*LL_NUM_NDF );
   res = theChannel.recvVector(dataTag, commitTag, data);
   if (res < 0) {
     opserr <<"WARNING LineLoad::recvSelf() - failed to receive Vector\n";
@@ -387,12 +374,9 @@ LineLoad::recvSelf(int commitTag, Channel &theChannel, FEM_ObjectBroker &theBrok
   mLoadFactor = data(2);
 
   for (int i = 0; i < LL_NUM_NDF; i++) {
-    g1(i)     = data(3+             i);
-    dcrd1(i)  = data(3+1*LL_NUM_NDF+i);
-    dcrd2(i)  = data(3+2*LL_NUM_NDF+i);
+    dcrd1(i)  = data(3+0*LL_NUM_NDF+i);
+    dcrd2(i)  = data(3+1*LL_NUM_NDF+i);
   }
-  for (int i = 0; i < LL_NUM_NODE; i++)
-    myNI(i) = data(3+3*LL_NUM_NDF+i);
 
   // LineLoad now receives the tags of its four external nodes
   res = theChannel.recvID(dataTag, commitTag, myExternalNodes);

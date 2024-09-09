@@ -25,12 +25,12 @@ element truss 5 3 4 1.0 1
 element truss 6 4 2 1.0 1
 
 # add LineLoad elements - command: LineLoad LineLoadID node1 node2 radius lib
-element LineLoad  7 1 2 0.5 lib.so
-element LineLoad  8 1 3 0.5 lib.so
-element LineLoad  9 1 4 0.5 lib.so
-element LineLoad 10 2 3 0.5 lib.so
-element LineLoad 11 3 4 0.5 lib.so
-element LineLoad 12 2 4 0.5 lib.so
+element LineLoad  7 1 2 0.5 line_load_example
+element LineLoad  8 1 3 0.5 line_load_example
+element LineLoad  9 1 4 0.5 line_load_example
+element LineLoad 10 2 3 0.5 line_load_example
+element LineLoad 11 3 4 0.5 line_load_example
+element LineLoad 12 2 4 0.5 line_load_example
 
 # set the boundary conditions - command: fix nodeID xResrnt? yRestrnt? zRestrnt?
 fix 1 1 1 1
