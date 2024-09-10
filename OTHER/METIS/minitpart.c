@@ -18,6 +18,24 @@
 /*************************************************************************
 * This function computes the initial bisection of the coarsest graph
 **************************************************************************/
+int SelectQueueOneWay(int ncon, float *npwgts, float *tpwgts, int from, PQueueType queues[MAXNCON][2])
+{
+  int i, cnum=-1;
+  float max=0.0;
+
+  for (i=0; i<ncon; i++) {
+    if (npwgts[from*ncon+i]-tpwgts[from] >= max && 
+        PQueueGetSize(&queues[i][0]) + PQueueGetSize(&queues[i][1]) > 0) {
+      max = npwgts[from*ncon+i]-tpwgts[0];
+      cnum = i;
+    }
+  }
+
+  return cnum;
+}
+
+
+
 void MocInit2WayPartition(CtrlType *ctrl, GraphType *graph, float *tpwgts, float ubfactor) 
 {
   int i, dbglvl;
@@ -338,20 +356,5 @@ void MocInit2WayBalance(CtrlType *ctrl, GraphType *graph, float *tpwgts)
 * This function selects the partition number and the queue from which
 * we will move vertices out
 **************************************************************************/ 
-int SelectQueueOneWay(int ncon, float *npwgts, float *tpwgts, int from, PQueueType queues[MAXNCON][2])
-{
-  int i, cnum=-1;
-  float max=0.0;
-
-  for (i=0; i<ncon; i++) {
-    if (npwgts[from*ncon+i]-tpwgts[from] >= max && 
-        PQueueGetSize(&queues[i][0]) + PQueueGetSize(&queues[i][1]) > 0) {
-      max = npwgts[from*ncon+i]-tpwgts[0];
-      cnum = i;
-    }
-  }
-
-  return cnum;
-}
 
 

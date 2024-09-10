@@ -2,7 +2,8 @@
 #include <math.h>
 #include <iostream>
 #include <set>
-
+#include "Vortex_Model.h"
+VortedModel Vm;
 // global static set of all unique externally defined element tags
 static std::set<int> unique_element_tags;
 
@@ -46,7 +47,20 @@ extern "C" {
     double drag_coeff = 1.0;
     double area = 2.0*radius;
     double density = 0.001;
+
+    double Um = 74; //m/s
+    double Sm = 2;
+    double rm = 200; //m
+    double z = 1.9; //m
+
+
+    double velocity[3];
+    Vm.define_tor(Um, Sm, rm, z);
+    Vm.position(icrd[0], icrd[1], icrd[2], velocity[0], velocity[1], velocity[2] ,"Baker");
+  
+
     double v_ref = 1.0;
+    
     double time_scaling = 1.0 - std::exp(-time);
     double velocity[3];
     velocity[0] = v_ref*time_scaling*(-icrd[1]);
