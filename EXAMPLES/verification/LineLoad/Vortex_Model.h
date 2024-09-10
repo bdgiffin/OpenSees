@@ -7,10 +7,10 @@
 #include <stdio.h>
 #include <iostream>
 
-class VortedModel {
+class VortexModel {
 public:
 
-VortedModel(){ }
+VortexModel(){ }
 
 void define_tor(double Um_in, double Sm_in, double rm_in, double z_in){
   Um = Um_in;
@@ -24,10 +24,37 @@ void position(double xw, double yw, double zw, double &vxw, double &vyw, double 
  double vxf, vyf, vzf, rhof;
  if (type =="Baker"){    
    get_fluid_velocity_and_density(vxf,vyf,vzf,rhof,xw,yw,zw);
- };
- vxw =vxf;
- vyw =vxf;
- vzw = vzf;
+ }
+
+else if (type =="Rankine"){    
+   get_Rankine(vxf,vyf,vzf,rhof,xw,yw,zw);
+ }
+
+else if (type =="Bjerknes"){    
+   get_Bjerknes(vxf,vyf,vzf,rhof,xw,yw,zw);
+ }
+
+ else if (type =="Vatistas"){    
+   get_Vatistas(vxf,vyf,vzf,rhof,xw,yw,zw);
+ }
+
+else if (type == "Fujita") {
+  get_Fujita(vxf,vyf,vzf,rhof,xw,yw,zw);
+}
+
+else if (type == "Burgers_rott") {
+  get_Burgers_rott(vxf,vyf,vzf,rhof,xw,yw,zw);
+}
+
+ else if (type == "Sullivan") {
+  get_Sullivan(vxf,vyf,vzf,rhof,xw,yw,zw);
+ }
+
+ else {
+  std::cout<< "Enter the correct name this is automatically running Baker Model";
+  get_fluid_velocity_and_density(vxf,vyf,vzf,rhof,xw,yw,zw);
+
+ }
 }
 
 void get_fluid_velocity_and_density(double& vxf, double& vyf, double& vzf, double& rhof,
@@ -73,6 +100,37 @@ void get_fluid_velocity_and_density(double& vxf, double& vyf, double& vzf, doubl
 
   //Ranking Model 
   //Rankine, W.J.M., 1882. A Manual of Applied Physics, tenth ed. Charles Griff and Co.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void get_Rankine (double& vxf, double& vyf, double& vzf, double& rhof,
 			  	      double xp, double yp, double zp) {
                   vzf =0;
@@ -218,7 +276,7 @@ void get_Rankine (double& vxf, double& vyf, double& vzf, double& rhof,
 
 // Burgers model 
 //https://www.sciencedirect.com/science/article/pii/S0065215608701005
-  void Burgers_rott(double& vxf, double& vyf, double& vzf, double& rhof,
+  void get_Burgers_rott(double& vxf, double& vyf, double& vzf, double& rhof,
 			  	      double xp, double yp, double zp) {
                   double U,V,W;
                   rhof = 1.293; // [kg/m^3] fluid density (of air at STP)
@@ -241,7 +299,7 @@ void get_Rankine (double& vxf, double& vyf, double& vzf, double& rhof,
                   vzf = W;
                 }
 
-  void Sullivan (double& vxf, double& vyf, double& vzf, double& rhof,
+  void get_Sullivan (double& vxf, double& vyf, double& vzf, double& rhof,
 			  	      double xp, double yp, double zp) {
                            double U,V,W;
                   double U,V,W,H={zp};
