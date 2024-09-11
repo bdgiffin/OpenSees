@@ -1,4 +1,6 @@
+#include "ParticleDynamics.h"
 #include <stdio.h>
+<<<<<<< HEAD
 #include <math.h>
 #include <iostream>
 #include <set>
@@ -6,11 +8,46 @@
 VortexModel Vm;
 // global static set of all unique externally defined element tags
 static std::set<int> unique_element_tags;
+=======
+
+// global instance of the particle dynamics object
+ParticleDynamics particle_dynamics;
+
+// ======================================================================== //
+>>>>>>> master
 
 // Define all C API functions within the following block:
 extern "C" {
 
-  // The main API function called by the OpenSees LineLoad element type
+  // The main API function called by OpenSees to initialize the 
+  void OPS_InitializeLineLoad(void) {
+
+    // check to see if this is the first time this function is being called
+    if (!particle_dynamics.initialized()) {
+      // initialize the particle dynamics object and define randomized particle positions
+      particle_dynamics.initialize();
+    }
+    
+  } // OPS_InitializeLineLoad
+  
+  // ------------------------------------------------------------------------ //
+
+  // The API function called by OpenSees to initialize a new LineLoad element
+  void OPS_DefineLineLoadSegment(const double* coordinates, int element_tag, double radius) {
+    // (input)  coordinates[2*3]: the nodal coordinates of the current element
+    // (input)  element_tag:      the unique "tag" identifier for the current element
+    // (input)  radius:           the effective radius of the current element
+
+    // check to see if this element was defined previously
+    if (!particle_dynamics.member_exists(element_tag)) {
+      particle_dynamics.define_cylindrical_member(coordinates, element_tag, radius);
+    }
+    
+  } // OPS_DefineLineLoadSegment
+  
+  // ------------------------------------------------------------------------ //
+
+  // The main API function called by OpenSees to apply loads to the current LineLoad element at a requested analysis time
   void OPS_ApplyLineLoad(double* forces, const double* coordinates, int element_tag, double radius, double time) {
     // (output) forces[2*3]:      the forces applied to the nodes of the current element
     // (input)  coordinates[2*3]: the nodal coordinates of the current element
@@ -18,14 +55,20 @@ extern "C" {
     // (input)  radius:           the effective radius of the current element
     // (input)  time:             the current analysis time
 
-    // check to see if this element is having loads applied to it for the first time,
-    // and keep track of 
-    if (!unique_element_tags.count(element_tag)) {
-      unique_element_tags.insert(element_tag);
-      std::cout << "Applying line load to new member " << element_tag << std::endl;
-    } else {
-      std::cout << "Applying line load to existing member " << element_tag << std::endl;
-    }
+    // conditionally update the simulation state to the indicated analysis time
+    particle_dynamics.update_state(time);
+
+    // apply drag load to the current member
+    particle_dynamics.apply_drag_load(forces,coordinates,element_tag,radius,time);
+    
+  } // OPS_ApplyLineLoad
+  
+} // extern "C"
+
+// ======================================================================== //
+
+// Apply a simple drag load to a given structural member
+void apply_drag_load(double* forces, const double* coordinates, int element_tag, double radius, double time) {
 
     // get the mid-point position along the length of the element
     double icrd[3] = { 0.5*(coordinates[0]+coordinates[3]),
@@ -83,7 +126,7 @@ extern "C" {
     forces[5] = 0.5*drag_force[2]; // z-force at node 2
 		
     // ------------------------------------------------------------------------ //
-    
-  } // OPS_ApplyLineLoad
   
-} // extern "C"
+} // applyDragLoad()
+
+// ======================================================================== //
