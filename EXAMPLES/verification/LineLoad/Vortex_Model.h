@@ -20,10 +20,10 @@ void define_tor(double Um_in, double Sm_in, double rm_in, double z_in){
   
 };
 
-void position(double xw, double yw, double zw, double &vxw, double &vyw, double &vzw ,std::string type){
+void position(double xw, double yw, double zw, double &vxw, double &vyw, double &vzw ,double time, std::string type){
  double vxf, vyf, vzf, rhof;
  if (type =="Baker"){    
-   get_fluid_velocity_and_density(vxf,vyf,vzf,rhof,xw,yw,zw);
+   get_fluid_velocity_and_density(vxf,vyf,vzf,rhof,xw,yw,zw, time );
  }
 
 else if (type =="Rankine"){    
@@ -52,21 +52,23 @@ else if (type == "Burgers_rott") {
 
  else {
   std::cout<< "Enter the correct name this is automatically running Baker Model";
-  get_fluid_velocity_and_density(vxf,vyf,vzf,rhof,xw,yw,zw);
+  get_fluid_velocity_and_density(vxf,vyf,vzf,rhof,xw,yw,zw,time);
 
  }
 }
 
 void get_fluid_velocity_and_density(double& vxf, double& vyf, double& vzf, double& rhof,
-			  	      double xp, double yp, double zp) {
+			  	      double xp, double yp, double zp, double time) {
     // Define reference values and constants for use in dimensionless evaluations
     double K = S*(2.0/std::log(2.0));
     double gamma = 2.0;
     double delta = zm/rm;
 
     // Define the center of the vortex
-    double xc = 10.0; // [m]
-    double yc = 0.0; // [m]
+    double x0 = 10.0; // [m]
+    double Q_bar = 5.0; //m/s (Velocity of the torando movement in x-axis)
+    double xc = x0-Q_bar*time;
+    double yc = -2.0; // [m]
     double zc = 0.0; // [m]
 
     // Compute normalized radial and height coordinates
@@ -86,8 +88,15 @@ void get_fluid_velocity_and_density(double& vxf, double& vyf, double& vzf, doubl
     double Wbar = 4.0*delta*log_one_zbar2/(one_rbar2*one_rbar2);
     double Pbar = 8.0*std::pow(rbar,2)*zbar/std::pow(one_rbar2*one_zbar2,2)-4.15*S*S*std::pow(log_one_zbar2,2)/one_rbar2 -
                   4*log_one_zbar2*one_zbar2/std::pow(one_rbar2*one_zbar2,2);
-                  
 
+    //Translation of the velocity compoenent 
+
+    double r = xc / pow(pow(xc,2)+pow(yc,2),0.5);
+    double V_bar2 = pow(pow(Q_bar+Ubar*r-Vbar*r,2) +pow(Q_bar+Ubar*r+Vbar*r,2),0.5);
+    double thita = atan(Ubar*r+Vbar*r/(Q_bar+Ubar*r-Vbar*r));
+    Ubar = V_bar2 * cos(thita);
+    Vbar = V_bar2* sin(thita);
+                  
     // Compute the x,y,z components of the fluid velocity
     vxf = Um*(Ubar*cosp-Vbar*sinp);
     vyf = Um*(Ubar*sinp+Vbar*cosp);
@@ -95,6 +104,9 @@ void get_fluid_velocity_and_density(double& vxf, double& vyf, double& vzf, doubl
 
     // Assume the density is constant
     rhof = 1.293; // [kg/m^3] fluid density (of air at STP)
+
+    
+    
       
   } // get_fluid_velocity_and_density()
 
