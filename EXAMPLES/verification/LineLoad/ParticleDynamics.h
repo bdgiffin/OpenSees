@@ -1,7 +1,9 @@
 #ifndef PARTICLE_DYNAMICS_H
 #define PARTICLE_DYNAMICS_H
 
-#include "SpatialHash.h"
+#include "WindField.h"
+#include "Structure.h"
+#include "Particles.h"
 #include <vector>
 #include <set>
 #include <limits>
@@ -9,98 +11,9 @@
 #include <stdio.h>
 #include <iostream>
 
-// ======================================================================== //
-
-// Abstract base class for a generic wind field model
-class WindField {
-public:
-
-  // ------------------- Declare public member functions ------------------ //
-
-  
-  void WindField(void) {} // Empty default constructor method
-  
-  virtual void get_fluid_velocity_and_density(int num_points, double time,
-				              const double* x, const double* y, const double* z,
-				              double* vx, double* vy, double* vz, double* rhof) = 0;
-  
-  // ---------------------------------------------------------------------- //
-
-}; // WindField
-
-// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ //
-
-// Example derived class for a straight-line wind field
-class StraightLineWindField : public WindField {
-
-  // ------------------- Declare public member functions ------------------ //
-
-  void StraightLineWindField(void) : WindField() {} // Parameterized constructor method
-  
-  // ---------------------------------------------------------------------- //
-
-}; // StraightLineWindField
 
 // ======================================================================== //
 
-// A space truss structure comprised of cylindrical members
-struct Elements {
-  
-  // ------------------- Declare public member functions ------------------ //
-  
-  void apply_drag_loads(WindField* wind_model) {
-    
-  } // apply_drag_loads()
-    
-  // --------------------- Declare public data members -------------------- //
-
-  // Common constants defined for all members
-  int         num_members;  // The total number of members
-  SpatialHash members_hash; // Spatial hash to help search for the candidate members that may be in contact with a given particle
-
-  // Data defined separately for each member
-  std::vector<int>    tag_to_index;  // Mapping from (global) element tag to (local) member index
-  std::vector<int>    element_tag;   // The element tags associated with all members
-  std::vector<double> radius;        // The radii of all members
-  std::vector<double>  x1,  y1,  z1; // The coordinates of the first  joint for all members
-  std::vector<double>  x2,  y2,  z2; // The coordinates of the second joint for all members
-  std::vector<double> fx1, fy1, fz1; // The forces applied to the first  joint for all members
-  std::vector<double> fx2, fy2, fz2; // The forces applied to the second joint for all members
-  
-  // ---------------------------------------------------------------------- //
-  
-}; // Elements
-
-// ======================================================================== //
-
-// A collection of particles
-struct Particles {
-
-  // ------------------- Declare public member functions ------------------ //
-
-  void apply_drag_loads(WindField* wind_model) {
-    
-  } // apply_drag_loads()
-
-  // --------------------- Declare public data members -------------------- //
-
-  // Common constants defined for all particles
-  int num_particles; // The total number of particles
-  double stiffness;  // Contact spring stiffness for all particles
-
-  // Data defined separately for each particle
-  std::vector<double> mass;       // The masses defined for all particles
-  std::vector<double> diameter;   // The diameters of all particles
-  std::vector<double>  x,  y,  z; // The current spatial coordinates of all particles
-  std::vector<double> ux, uy, uz; // The total displacement of all particles
-  std::vector<double> vx, vy, vz; // The current velocity of all particles
-  std::vector<double> fx, fy, fz; // The current forces applied to all particles
-  
-  // ---------------------------------------------------------------------- //
-
-}; // Particles
-
-// ======================================================================== //
 
 // Main simulation driver object
 class ParticleDynamics {
@@ -454,86 +367,16 @@ private:
     fzp += fc*dz;
     
   } // apply_contact_force()
-
-  // ---------------------------------------------------------------------- //
   
-  void apply_particle_drag_force(double& fxp, double& fyp, double& fzp, double rp,
-				 double xp, double yp, double zp, double vxp, double vyp, double vzp) {
-    // determine the fluid velocity and density at the current position of the particle
-    double vxf, vyf, vzf, rhof;
-    get_fluid_velocity_and_density(vxf,vyf,vzf,rhof,xp,yp,zp);
-
-    // determine the velocity of the particle relative to the fluid
-    double vx_rel = vxp - vxf;
-    double vy_rel = vyp - vyf;
-    double vz_rel = vzp - vzf;
-    double vmag_rel = std::sqrt(vx_rel*vx_rel + vy_rel*vy_rel + vz_rel*vz_rel);
-    
-    // compute and apply the drag force
-    const double pi = 2.0*std::acos(0.0);
-    double drag_coefficient = 0.47; // for an assumed spherical particle
-    double area = 0.5*pi*rp*rp;
-    double fdrag = -0.5*drag_coefficient*area*rhof*vmag_rel;
-    fxp += fdrag*vx_rel;
-    fyp += fdrag*vy_rel;
-    fzp += fdrag*vz_rel;
-    
-  } // apply_particle_drag_force()
-
-  // ---------------------------------------------------------------------- //
-  
-  // Implementation of vortex model of Baker and Sterling (2017)
-  // https://www.sciencedirect.com/science/article/pii/S0167610517301174
-  void get_fluid_velocity_and_density(double& vxf, double& vyf, double& vzf, double& rhof,
-			  	      double xp, double yp, double zp) {
-    // Define reference values and constants for use in dimensionless evaluations
-    double Um = 100.0; // [m/s] reference radial velocity
-    double rm = 0.1; // [m] reference radius
-    double zm = 10.0; // [m] reference height
-    double S = 2.0; // swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
-    double K = S*(2.0/std::log(2.0));
-    double gamma = 2.0;
-    double delta = zm/rm;
-
-    // Define the center of the vortex
-    double xc = 10.0; // [m]
-    double yc = 0.0; // [m]
-    double zc = 0.0; // [m]
-
-    // Compute normalized radial and height coordinates
-    double rp = std::sqrt((xp-xc)*(xp-xc) + (yp-yc)*(yp-yc));
-    double inv_rp = 1.0/(rp+std::numeric_limits<double>::min());
-    double cosp = (xp-xc)*inv_rp;
-    double sinp = (yp-yc)*inv_rp;
-    double rbar = rp/rm;
-    double zbar = (zp-zc)/zm;
-
-    // Compute normalized radial, tangential, and vertical velocity of the vortex
-    double one_rbar2 = 1.0 + rbar*rbar;
-    double one_zbar2 = 1.0 + zbar*zbar;
-    double log_one_zbar2 = std::log(one_zbar2);
-    double Ubar = -4.0*rbar*zbar/(one_rbar2*one_zbar2);
-    double Vbar = K*std::pow(rbar,gamma-1.0)*std::pow(log_one_zbar2,0.5*gamma)/std::pow(one_rbar2,0.5*gamma);
-    double Wbar = 4.0*delta*log_one_zbar2/(one_rbar2*one_rbar2);
-
-    // Compute the x,y,z components of the fluid velocity
-    vxf = Um*(Ubar*cosp-Vbar*sinp);
-    vyf = Um*(Ubar*sinp+Vbar*cosp);
-    vzf = Um*Wbar;
-
-    // Assume the density is constant
-    rhof = 1.293; // [kg/m^3] fluid density (of air at STP)
-      
-  } // get_fluid_velocity_and_density()
-
   // -------------------- Declare private data members -------------------- //
 
   double time;   // Current analysis time
   double dt_max; // Maximum allowable time step size to maintain numerical stability
   double g;      // Gravitational acceleration constant
 
-  Particles compact_debris; // Compact debris represented as spherical particles
-  Elements  members;        // Structural members represented as cylindrical rods
+  WindField* wind_model;     // Wind field model
+  Particles  compact_debris; // Compact debris represented as spherical particles
+  Structure  members;        // Structural members represented as cylindrical rods
   
 }; // ParticleDynamics
 
