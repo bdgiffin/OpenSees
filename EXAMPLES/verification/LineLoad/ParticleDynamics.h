@@ -18,13 +18,14 @@
 
 
 // Main simulation driver object
-class ParticleDynamics {
-public:
+struct ParticleDynamics {
 
   // ------------------- Declare public member functions ------------------ //
   
   // Default constructor
   ParticleDynamics(void) { }
+
+  bool initialized(void) { return is_initialized; }
 
   // Initialize the particle dynamics simulation
   void initialize() {
@@ -51,6 +52,9 @@ public:
 
     // Initialize the members in the Structure
     members.initialize();
+
+    // Set the "is_initialized" flag
+    is_initialized = true;
     
   } // initialize()
   
@@ -58,26 +62,31 @@ public:
   
   // Update the simulation state to the indicated analysis time
   void update_state(double time_in) {
+
+    // conditionally update the simulation state to the new analysis time
+    if (time_in > time) {
     
-    // determine the current time increment (the difference between the old and new times)
-    double t0 = time;
-    double time_increment = time_in - time;
+      // determine the current time increment (the difference between the old and new times)
+      double t0 = time;
+      double time_increment = time_in - time;
 
-    // determine the maximum allowable (stable) time step size
-    double dt_max = debris.stable_time_step();
+      // determine the maximum allowable (stable) time step size
+      double dt_max = debris.stable_time_step();
 
-    // subdivide the increment into sub-steps based upon the stable time step size
-    int Nsub_steps = std::ceil(time_increment/dt_max);
-    double dt_sub = time_increment/Nsub_steps;
+      // subdivide the increment into sub-steps based upon the stable time step size
+      int Nsub_steps = std::ceil(time_increment/dt_max);
+      double dt_sub = time_increment/Nsub_steps;
 
-    // loop over sub-steps and take time steps
-    std::cout << "  ParticleDynamics - number of sub-steps for the current time increment: " << Nsub_steps << std::endl;
-    for (int i=0; i < Nsub_steps; i++) {
-      time_step(t0 + (i+1)*dt_sub);
+      // loop over sub-steps and take time steps
+      std::cout << "  ParticleDynamics - number of sub-steps for the current time increment: " << Nsub_steps << std::endl;
+      for (int i=0; i < Nsub_steps; i++) {
+	time_step(t0 + (i+1)*dt_sub);
+      }
+
+      // store the new analysis time
+      time = time_in;
+
     }
-
-    // store the new analysis time
-    time = time_in;
     
   } // update_state()
 
@@ -119,11 +128,16 @@ private:
     debris.integrate_equations_of_motion(dt);
     
   } // time_step()
-  
-  // -------------------- Declare private data members -------------------- //
+
+  // ---------------------------------------------------------------------- //
+
+public:
+    
+  // --------------------- Declare public data members -------------------- //
 
   double time; // Current analysis time
   double gz;   // Gravitational acceleration constant
+  bool   is_initialized = false; // Initialization flag
 
   WindField* wind_model; // Wind field model interface
   Particles  debris;     // Compact debris represented as spherical particles

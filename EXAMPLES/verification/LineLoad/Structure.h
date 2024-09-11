@@ -64,17 +64,22 @@ struct Structure {
   // Define a single new structural member
   void define_member(const double* new_coordinates, int new_element_tag, double new_radius = 0.0, double new_drag_coeff = 1.0) {
 
-    // append new data for the current member to the stored data arrays
-    num_members++;
-    element_tag.push_back(new_element_tag);
-    radius.push_back(new_radius);
-    drag_coeff.push_back(new_drag_coeff);
-    x1.push_back(new_coordinates[0]);
-    y1.push_back(new_coordinates[1]);
-    z1.push_back(new_coordinates[2]);
-    x2.push_back(new_coordinates[3]);
-    y2.push_back(new_coordinates[4]);
-    z2.push_back(new_coordinates[5]);
+    // make sure the member hasn't already been defined previously
+    if(std::find(element_tag.begin(), element_tag.end(), new_element_tag) == element_tag.end()) {
+      
+      // append new data for the current member to the stored data arrays
+      num_members++;
+      element_tag.push_back(new_element_tag);
+      radius.push_back(new_radius);
+      drag_coeff.push_back(new_drag_coeff);
+      x1.push_back(new_coordinates[0]);
+      y1.push_back(new_coordinates[1]);
+      z1.push_back(new_coordinates[2]);
+      x2.push_back(new_coordinates[3]);
+      y2.push_back(new_coordinates[4]);
+      z2.push_back(new_coordinates[5]);
+      
+    }
     
   } // define_member
 
@@ -111,7 +116,7 @@ struct Structure {
 			   *std::max_element(z2.begin(),z2.end()));
 
     // set a fixed number of grid cells on all sides
-    int    Nxyz  = 100; // (this should be a user-defined parameter)
+    int    Nxyz  = 100; // (this should be determined based upon the number of members and the size of the structure)
     double dedge = ((xmax - xmin) + (ymax - ymin) + (zmax - zmin))/Nxyz;
 
     // expand the grid dimensions by one extra layer of grid cells in all directions
@@ -313,6 +318,34 @@ struct Structure {
     fx2[s] -= xi2*fc*dx;
     fy2[s] -= xi2*fc*dy;
     fz2[s] -= xi2*fc*dz;
+    
+  } // apply_contact_force()
+
+  // ---------------------------------------------------------------------- //
+  
+  // get the forces applied to the joints of the requested element whose tag is specified
+  void get_applied_forces(int tag, const double* coordinates, double* forces) {
+
+    // convert (global) element tag to (local) member index i
+    int i = tag_to_index[tag];
+
+    // return the forces applied to the joints of the indicated member
+    // (these should probably be averaged over the preceeding time increment?)
+    forces[0] = fx1[i];
+    forces[1] = fy1[i];
+    forces[2] = fz1[i];
+    forces[3] = fx2[i];
+    forces[4] = fy2[i];
+    forces[5] = fz2[i];
+
+    // update the joint coordinates for the indicated member
+    // (don't do this currently to avoid having to update the spatial hash)
+    //x1[i] = coordinates[0];
+    //y1[i] = coordinates[1];
+    //z1[i] = coordinates[2];
+    //x2[i] = coordinates[3];
+    //y2[i] = coordinates[4];
+    //z2[i] = coordinates[5];
     
   } // apply_contact_force()
     
