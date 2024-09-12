@@ -15,7 +15,7 @@ struct Particles {
   // ------------------- Declare public member functions ------------------ //
 
   // Default empty constructor
-  void Particles(void) { }
+  Particles(void) { }
   
   // ---------------------------------------------------------------------- //
 
@@ -44,6 +44,8 @@ struct Particles {
 
   // Initialize the Particles object (assuming all particles have been defined)
   void initialize(WindField* wind_model, double initial_time = 0.0, double new_drag_coeff = 0.47, double new_contact_stiff = 1.0e+2) {
+    
+    std::cout << "Initializing Particles object with " << num_particles << " particles defined" << std::endl;
 
     // Set constants common to all particles
     drag_coeff    = new_drag_coeff;    // (default = 0.47 for an assumed spherical particle)

@@ -18,7 +18,7 @@ public:
 
   // ------------------- Declare public member functions ------------------ //
 
-  void WindField(void) {} // Empty default constructor method
+  WindField(void) {} // Empty default constructor method
 
   // Pure virtual method to compute the fluid velocity and density at a specified time,
   // and at multiple evaluation points simultaneously
@@ -37,16 +37,17 @@ public:
 // Example derived class for a vortex wind field (Baker & Sterling, 2017)
 // https://www.sciencedirect.com/science/article/pii/S0167610517301174
 class BakerSterlingVortex : public WindField {
+public:
 
   // ------------------- Declare public member functions ------------------ //
 
   // Parameterized constructor method
-  void BakerSterlingVortex(const Parameters& parameters) : WindField() {
+  BakerSterlingVortex(Parameters& parameters) : WindField() {
     if (parameters.count("initial_center") > 0) {
-      std::vector<double> initial_center = parameters["initial_center"];
-      xc = initial_center[0];
-      yc = initial_center[1];
-      zc = initial_center[2];
+      std::vector<double> xyzc = parameters["initial_center"];
+      xc = xyzc[0];
+      yc = xyzc[1];
+      zc = xyzc[2];
     }
   } // BakerSterlingVortex()
 
@@ -91,6 +92,10 @@ class BakerSterlingVortex : public WindField {
     } // for i=1,...,num_points
 
   } // get_fluid_velocity_and_density()
+
+  // ---------------------------------------------------------------------- //
+  
+private:
   
   // -------------------- Declare private data members -------------------- //
 
@@ -119,7 +124,7 @@ class BakerSterlingVortex : public WindField {
 
 
 // Factory method to create a new WindField model from (generic) parameterized inputs
-WindField* new_WindField(std::string type, const Parameters& parameters) {
+WindField* new_WindField(std::string type, Parameters& parameters) {
 
   // Attempt to create a new wind field model
   if (type == "BakerSterlingVortex") {

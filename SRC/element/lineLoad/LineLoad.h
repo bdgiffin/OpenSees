@@ -41,7 +41,9 @@ class Channel;
 class NDMaterial;
 class FEM_ObjectBroker;
 
-typedef void (*LineLoadFunct)(double* forces, const double* coordinates, int element_tag, double radius, double time);
+typedef void (*InitializeLineLoadFunct)(void);
+typedef void (*DefineLineLoadSegmentFunct)(int element_tag, double radius, const double* coordinates);
+typedef void (*ApplyLineLoadFunct)(double time, int element_tag, const double* coordinates, double* forces);
 
 class LineLoad : public Element
 {
@@ -111,7 +113,9 @@ class LineLoad : public Element
 
     std::string libName;       // the user-defined external library name
     void* libHandle;
-    LineLoadFunct lineLoadFunctPtr;
+    InitializeLineLoadFunct    initializeLineLoadFunctPtr;
+    DefineLineLoadSegmentFunct defineLineLoadSegmentFunctPtr;
+    ApplyLineLoadFunct         applyLineLoadFunctPtr;
 
 	double mLoadFactor;       // factor from load pattern
 };

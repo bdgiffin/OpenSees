@@ -51,7 +51,9 @@ Vector LineLoad::theVector(LL_NUM_DOF);
 static int num_LineLoad = 0;
 static std::string globalLoadLibName = "";
 static void* globalLoadLibPtr = nullptr;
-static LineLoadFunct globalLoadFunctPtr = nullptr;
+static InitializeLineLoadFunct    globalInitializeLineLoadFunctPtr = nullptr;
+static DefineLineLoadSegmentFunct globalDefineLineLoadSegmentFunctPtr = nullptr;
+static ApplyLineLoadFunct         globalApplyLineLoadFunctPtr = nullptr;
 
 void *
 OPS_LineLoad(void)
@@ -91,7 +93,7 @@ OPS_LineLoad(void)
   theElement = new LineLoad(iData[0], iData[1], iData[2], dData[0], sData);
 
   if (theElement == 0) {
-    opserr << "WARNING could not create element of type LineLoadElement\n";
+    opserr << "WARNING could not create element of type LineLoad\n";
     return 0;
   }
 
@@ -113,9 +115,8 @@ LineLoad::LineLoad(int tag, int Nd1, int Nd2, double radius, const char* lib)
 
 	mLoadFactor = 1.0;
 
-    int ret = dynamicLibraryLoad();
-    if (ret != 0) {
-      opserr << "WARNING could not load dynamic library function for LineLoadElement\n";
+    if (dynamicLibraryLoad() != 0) {
+      opserr << "WARNING could not load dynamic library function(s) for LineLoad element\n";
     }
 }
 
@@ -171,6 +172,10 @@ LineLoad::setDomain(Domain *theDomain)
     dcrd1 = theNodes[0]->getCrds();
     dcrd2 = theNodes[1]->getCrds();
 
+    // call the external library function to define the new element within the library module
+    double coordinates[LL_NUM_NODE*LL_NUM_NDF] = { dcrd1(0), dcrd1(1), dcrd1(2), dcrd2(0), dcrd2(1), dcrd2(2) };
+    defineLineLoadSegmentFunctPtr(this->getTag(), my_radius, &coordinates[0]);
+
     // call the base class method
     this->DomainComponent::setDomain(theDomain);
 }
@@ -213,24 +218,28 @@ LineLoad::dynamicLibraryLoad()
     // try existing loaded routine
     if (libName == globalLoadLibName) {
 
-      // set the library handle and function ptr &  return it
+      // set the library handle and function ptrs
       libHandle = globalLoadLibPtr;
-      lineLoadFunctPtr = globalLoadFunctPtr;
+      initializeLineLoadFunctPtr    = globalInitializeLineLoadFunctPtr;
+      defineLineLoadSegmentFunctPtr = globalDefineLineLoadSegmentFunctPtr;
+      applyLineLoadFunctPtr         = globalApplyLineLoadFunctPtr;
+
       return 0;
       
     }
 
-    // ty to load new routine from dynamic library in load path
-    const char *libraryName  = libName.c_str();
-    const char *functionName = "OPS_ApplyLineLoad";
+    // ty to load new routines from dynamic library in load path
+    int res1 = getLibraryFunction(libName.c_str(), "OPS_InitializeLineLoad",    &libHandle, (void**)&initializeLineLoadFunctPtr);
+    int res2 = getLibraryFunction(libName.c_str(), "OPS_DefineLineLoadSegment", &libHandle, (void**)&defineLineLoadSegmentFunctPtr);
+    int res3 = getLibraryFunction(libName.c_str(), "OPS_ApplyLineLoad",         &libHandle, (void**)&applyLineLoadFunctPtr);
 
-    int res = getLibraryFunction(libraryName, functionName, &libHandle, (void**)&lineLoadFunctPtr);
-
-    if (res == 0) {
-      // set the global data consistent with the newly loaded library routine
-      globalLoadLibName = libName;
-      globalLoadLibPtr = libHandle;
-      globalLoadFunctPtr = lineLoadFunctPtr;
+    if ((res1 == 0) && (res2 == 0) && (res3 == 0)) {
+      // set the global data consistent with the newly loaded library routines
+      globalLoadLibName  = libName;
+      globalLoadLibPtr   = libHandle;
+      globalInitializeLineLoadFunctPtr    = initializeLineLoadFunctPtr;
+      globalDefineLineLoadSegmentFunctPtr = defineLineLoadSegmentFunctPtr;
+      globalApplyLineLoadFunctPtr         = applyLineLoadFunctPtr;
       return 0;
     } else {
       return 1;
@@ -294,7 +303,7 @@ LineLoad::getResistingForce()
 	double coordinates[LL_NUM_NODE*LL_NUM_NDF] = { dcrd1(0), dcrd1(1), dcrd1(2), dcrd2(0), dcrd2(1), dcrd2(2) };
 	
 	// call the external library function to determine the resulting nodal forces applied to the element
-	lineLoadFunctPtr(&forces[0], &coordinates[0], this->getTag(), my_radius, t);
+	applyLineLoadFunctPtr(t, this->getTag(), &coordinates[0], &forces[0]);
 	
 	// compute internal forces by scaling the nodal forces by the associated load factor
 	
@@ -370,7 +379,7 @@ LineLoad::recvSelf(int commitTag, Channel &theChannel, FEM_ObjectBroker &theBrok
   }           
   
   this->setTag(int(data(0)));
-  my_radius = data(1);
+  my_radius   = data(1);
   mLoadFactor = data(2);
 
   for (int i = 0; i < LL_NUM_NDF; i++) {

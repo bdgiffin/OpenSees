@@ -5,6 +5,7 @@
 #include "WindField.h"
 #include <algorithm>
 #include <vector>
+#include <set>
 #include <math.h>
 
 
@@ -13,6 +14,8 @@
 
 // Object to map integer keys to indices
 struct IndexMap {
+
+  IndexMap(void) {} // Empty default constructor method
   
   void initialize(std::vector<int>& indices_to_keys) {
     starting_key = *std::min_element(indices_to_keys.begin(),indices_to_keys.end());
@@ -40,7 +43,7 @@ struct Structure {
   // ------------------- Declare public member functions ------------------ //
 
   // Default empty constructor
-  void Structure(void) { }
+  Structure(void) { }
   
   // ---------------------------------------------------------------------- //
 
@@ -87,6 +90,7 @@ struct Structure {
 
   // Initialize the Structure object (assuming all members have been defined)
   void initialize(void) {
+    std::cout << "Initializing Structure object with " << num_members << " members defined" << std::endl;
     
     // initialize stored data for all members
     fx1.resize(num_members);

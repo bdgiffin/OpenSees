@@ -1,4 +1,5 @@
 #include "ParticleDynamics.h"
+#include <iostream>
 #include <stdio.h>
 
 // global instance of the particle dynamics object
@@ -29,6 +30,7 @@ extern "C" {
     // (input)  coordinates[2*3]: the nodal coordinates of the current element
 
     // define a new member in the Structure (if it doesn't already exist)
+    std::cout << "Defining new line load: element " << element_tag << ", radius " << radius << ", coords " << coordinates[0] << " " << coordinates[1] << " " << coordinates[2] << " " << coordinates[3] << " " << coordinates[4] << " " << coordinates[5] << std::endl;
     particle_dynamics.members.define_member(coordinates, element_tag, radius);
     
   } // OPS_DefineLineLoadSegment
@@ -47,6 +49,8 @@ extern "C" {
 
     // get loads applied to the requested element whose tag is specified
     particle_dynamics.members.get_applied_forces(element_tag,coordinates,forces);
+    std::cout << "Applying line load: element " << element_tag << ", time " << time << ", coords " << coordinates[0] << " " << coordinates[1] << " " << coordinates[2] << " " << coordinates[3] << " " << coordinates[4] << " " << coordinates[5]
+	      << ", forces " << forces[0] << " " << forces[1] << " " << forces[2] << " " << forces[3] << " " << forces[4] << " " << forces[5] << std::endl;
     
   } // OPS_ApplyLineLoad
   

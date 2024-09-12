@@ -30,6 +30,8 @@ struct ParticleDynamics {
   // Initialize the particle dynamics simulation
   void initialize() {
 
+    std::cout << "Initializing ParticleDynamics object" << std::endl;
+
     // Initialize the global gravitational acceleration constant
     gz = -9.8; // [m/s^2]
     
@@ -63,8 +65,12 @@ struct ParticleDynamics {
   // Update the simulation state to the indicated analysis time
   void update_state(double time_in) {
 
+    // conditionally initialize the simulation state
+    if (!is_initialized) initialize();
+
     // conditionally update the simulation state to the new analysis time
     if (time_in > time) {
+      std::cout << "  Updating ParticleDynamics to new requested time state: " << time_in << " (old time: " << time << ")" << std::endl;
     
       // determine the current time increment (the difference between the old and new times)
       double t0 = time;

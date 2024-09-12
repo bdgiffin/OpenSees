@@ -9,7 +9,18 @@
 // Define a "Variable" that can store and return different data types
 struct Variable {
 
+  // Enumerate the admissible Variable value types
+  enum ValueType {
+    NONE_VARIABLE,
+    DOUBLE_VARIABLE,
+    INT_VARIABLE,
+    BOOL_VARIABLE,
+    STRING_VARIABLE,
+    VECTOR_VARIABLE
+  };
+
   // explicit conversion from specified type to Variable
+  Variable(void) { type = ValueType::NONE_VARIABLE; }
   Variable(double              value) { double_value = value; type = ValueType::DOUBLE_VARIABLE; }
   Variable(int                 value) { int_value    = value; type = ValueType::INT_VARIABLE;    }
   Variable(bool                value) { bool_value   = value; type = ValueType::BOOL_VARIABLE;   }
@@ -24,14 +35,6 @@ struct Variable {
   operator bool()                { check_type_match(ValueType::BOOL_VARIABLE);   return bool_value;   }
   operator std::string()         { check_type_match(ValueType::STRING_VARIABLE); return string_value; }
   operator std::vector<double>() { check_type_match(ValueType::VECTOR_VARIABLE); return vector_value; }
-
-  enum ValueType {
-    DOUBLE_VARIABLE,
-    INT_VARIABLE,
-    BOOL_VARIABLE,
-    STRING_VARIABLE,
-    VECTOR_VARIABLE
-  };
 
   ValueType           type;
   double              double_value;
