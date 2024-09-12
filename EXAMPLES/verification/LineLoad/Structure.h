@@ -192,28 +192,26 @@ struct Structure {
 
     // loop over all members
     for (int i=0; i < num_members; i++) {
-    
-      // get the current element length and orientation vector
-      double lambda[3] = { (x2[i]-x1[i]), (y2[i]-y1[i]), (z2[i]-z1[i]) };
-      double length = std::sqrt(lambda[0]*lambda[0] + lambda[1]*lambda[1] + lambda[2]*lambda[2]);
-      lambda[0] /= length;
-      lambda[1] /= length;
-      lambda[2] /= length;
 
       // get the (relative) wind velocity at the current member's mid-point location (assuming the member is stationary)
       double velocity[3] = { vxf[i], vyf[i], vzf[i] };
 
-      // get the projected wind velocity, removing the axial component
-      double axial_velocity = lambda[0]*velocity[0] + lambda[1]*velocity[1] + lambda[2]*velocity[2];
-      velocity[0] -= lambda[0]*axial_velocity;
-      velocity[1] -= lambda[1]*axial_velocity;
-      velocity[2] -= lambda[2]*axial_velocity;
-      double norm_velocity = std::sqrt(velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2]);
+      // get the wind speed (the magnitude of the relative wind velocity vector) and the direction of the relative wind velocity
+      double wind_speed = std::sqrt(velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2]);
+      double wind_direction[3] = { velocity[0]/wind_speed, velocity[1]/wind_speed, velocity[2]/wind_speed };
+    
+      // get the projected length of the element within the plane perpindicular to the wind direction
+      double lambda[3] = { (x2[i]-x1[i]), (y2[i]-y1[i]), (z2[i]-z1[i]) };
+      double height = lambda[0]*wind_direction[0] + lambda[1]*wind_direction[1] + lambda[2]*wind_direction[2];
+      lambda[0] -= height*wind_direction[0];
+      lambda[1] -= height*wind_direction[1];
+      lambda[2] -= height*wind_direction[2];
+      double proj_length = std::sqrt(lambda[0]*lambda[0] + lambda[1]*lambda[1] + lambda[2]*lambda[2]);
 
-      // compute the total drag load
-      double area = 2.0*radius[i]*length;
-      double norm_force = 0.5*rhof[i]*drag_coeff[i]*area*norm_velocity;
-      double drag_force[3] = { norm_force*velocity[0], norm_force*velocity[1], norm_force*velocity[2] };
+      // compute the total drag load, applied in the same direction as the relative wind velocity
+      double area = 2.0*radius[i]*proj_length;
+      double norm_force = 0.5*rhof[i]*drag_coeff[i]*area*wind_speed;
+      double drag_force[3] = { norm_force*wind_direction[0], norm_force*wind_direction[1], norm_force*wind_direction[2] };
 
       // apply the drag force evenly between the two end-points of the member
       fx1[i] += 0.5*drag_force[0]; // x-force at node 1
