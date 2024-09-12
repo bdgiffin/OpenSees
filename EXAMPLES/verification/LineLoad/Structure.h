@@ -197,7 +197,8 @@ struct Structure {
       double velocity[3] = { vxf[i], vyf[i], vzf[i] };
 
       // get the wind speed (the magnitude of the relative wind velocity vector) and the direction of the relative wind velocity
-      double wind_speed = std::sqrt(velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2]);
+      double wind_speed = std::max(std::sqrt(velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2]),
+				   std::numeric_limits<double>::min());
       double wind_direction[3] = { velocity[0]/wind_speed, velocity[1]/wind_speed, velocity[2]/wind_speed };
     
       // get the projected length of the element within the plane perpindicular to the wind direction

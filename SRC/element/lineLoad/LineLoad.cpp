@@ -37,17 +37,17 @@
 #include <ErrorHandler.h>
 #include <NDMaterial.h>
 #include <ElementalLoad.h>
-#include <packages.h>
+#include <elementAPI.h>
 
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <dlfcn.h>
 
 Matrix LineLoad::tangentStiffness(LL_NUM_DOF, LL_NUM_DOF);
 Vector LineLoad::internalForces(LL_NUM_DOF);
 Vector LineLoad::theVector(LL_NUM_DOF);
 
-#include <elementAPI.h>
 static int num_LineLoad = 0;
 static std::string globalLoadLibName = "";
 static void* globalLoadLibPtr = nullptr;
@@ -228,22 +228,32 @@ LineLoad::dynamicLibraryLoad()
       
     }
 
-    // ty to load new routines from dynamic library in load path
-    int res1 = getLibraryFunction(libName.c_str(), "OPS_InitializeLineLoad",    &libHandle, (void**)&initializeLineLoadFunctPtr);
-    int res2 = getLibraryFunction(libName.c_str(), "OPS_DefineLineLoadSegment", &libHandle, (void**)&defineLineLoadSegmentFunctPtr);
-    int res3 = getLibraryFunction(libName.c_str(), "OPS_ApplyLineLoad",         &libHandle, (void**)&applyLineLoadFunctPtr);
-
-    if ((res1 == 0) && (res2 == 0) && (res3 == 0)) {
-      // set the global data consistent with the newly loaded library routines
-      globalLoadLibName  = libName;
-      globalLoadLibPtr   = libHandle;
-      globalInitializeLineLoadFunctPtr    = initializeLineLoadFunctPtr;
-      globalDefineLineLoadSegmentFunctPtr = defineLineLoadSegmentFunctPtr;
-      globalApplyLineLoadFunctPtr         = applyLineLoadFunctPtr;
-      return 0;
-    } else {
-      return 1;
+    // try to open dynamic library in load path
+    libHandle = dlopen(libName.c_str(), RTLD_NOW);
+    if (libHandle == nullptr) {
+      return -1; // no library exists; return with non-zero exit code
     }
+
+    // try to load new routines from opened dynamic library
+    auto load_fun = [](void* handle, void** fun, const char* fun_name) { *fun = dlsym(handle,fun_name); };
+    load_fun(libHandle, (void**)&initializeLineLoadFunctPtr,    "OPS_InitializeLineLoad");
+    load_fun(libHandle, (void**)&defineLineLoadSegmentFunctPtr, "OPS_DefineLineLoadSegment");
+    load_fun(libHandle, (void**)&applyLineLoadFunctPtr,         "OPS_ApplyLineLoad");
+    
+    if ((initializeLineLoadFunctPtr == nullptr) ||
+	(defineLineLoadSegmentFunctPtr == nullptr) ||
+	(applyLineLoadFunctPtr == nullptr)) {
+      dlclose(libHandle);
+      return -1; // missing one or more functions; return with non-zero exit code
+    }
+    
+    // set the global data consistent with the newly loaded library routines
+    globalLoadLibName = libName;
+    globalLoadLibPtr  = libHandle;
+    globalInitializeLineLoadFunctPtr    = initializeLineLoadFunctPtr;
+    globalDefineLineLoadSegmentFunctPtr = defineLineLoadSegmentFunctPtr;
+    globalApplyLineLoadFunctPtr         = applyLineLoadFunctPtr;
+    return 0;
     
 }
 

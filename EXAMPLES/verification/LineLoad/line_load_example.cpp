@@ -10,6 +10,17 @@ ParticleDynamics particle_dynamics;
 // Define all C API functions within the following block:
 extern "C" {
 
+  // Define all particles within the simulation
+  // n_particles: the total number of compact (spherical) particles to define
+  // m: array of particle masses
+  // d: array of particle diameters
+  // {x,y,z}: arrays of particle initial positions in 3D space
+  void define_particles(size_t n_particles, double *m, double *d, double *x, double *y, double *z) {
+    particle_dynamics.debris.define_particles(n_particles,m,d,x,y,z);
+  } // define_particles()
+  
+  // ------------------------------------------------------------------------ //
+
   // The main API function called by OpenSees to initialize the external module
   void OPS_InitializeLineLoad(void) {
 
