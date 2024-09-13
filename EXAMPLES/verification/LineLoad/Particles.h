@@ -2,6 +2,7 @@
 #define PARTICLES_H
 
 #include "WindField.h"
+#include "Logger.h"
 #include <vector>
 #include <math.h>
 
@@ -19,7 +20,7 @@ struct Particles {
   
   // ---------------------------------------------------------------------- //
 
-  // Legacy method to define all compact particles at once
+  // Method to define all compact particles at once
   void define_particles(size_t n_particles, double *m_in, double *d_in, double *x_in, double *y_in, double *z_in) {
     
     // Store incoming data for all newly defined particles
@@ -42,10 +43,31 @@ struct Particles {
 
   // ---------------------------------------------------------------------- //
 
+  // Method to retrieve field data for all compact particles at the current time
+  void get_field_data(double  *x_out, double  *y_out, double  *z_out,
+	 	      double *vx_out, double *vy_out, double *vz_out,
+		      double *fx_out, double *fy_out, double *fz_out) {
+
+    for (int i=0; i<num_particles; i++) {
+      x_out[i]  =  x[i];
+      y_out[i]  =  y[i];
+      z_out[i]  =  z[i];
+      vx_out[i] = vx[i];
+      vy_out[i] = vy[i];
+      vz_out[i] = vz[i];
+      fx_out[i] = fx[i];
+      fy_out[i] = fy[i];
+      fz_out[i] = fz[i];
+    } // for i=1,...,num_particles
+    
+  } // define_particles()
+
+  // ---------------------------------------------------------------------- //
+
   // Initialize the Particles object (assuming all particles have been defined)
   void initialize(WindField* wind_model, double initial_time = 0.0, double new_drag_coeff = 0.47, double new_contact_stiff = 1.0e+2) {
     
-    std::cout << "Initializing Particles object with " << num_particles << " particles defined" << std::endl;
+    DEBUG(std::cout << "Initializing Particles object with " << num_particles << " particles defined" << std::endl;)
 
     // Set constants common to all particles
     drag_coeff    = new_drag_coeff;    // (default = 0.47 for an assumed spherical particle)

@@ -1,7 +1,3 @@
-# Python package for calling C/C++ functions from Python
-from ctypes import CDLL, POINTER
-from ctypes import c_size_t, c_double, c_int
-
 # Module for OpenSees
 from openseespy.opensees import *
 
@@ -9,64 +5,41 @@ from openseespy.opensees import *
 # /opt/homebrew/lib/python3.12/site-packages/openseespy/__init__.py
 
 # Other needed Python packages
-import sys
-import os
-import math
-import time as timer
-from datetime import timedelta
 import numpy as np
-from argparse import ArgumentParser
-
-# ---------------------------------------------------------------------------- #
-
-# Load the pre-compiled external C/C++ "shared object" libraries
-libpd = CDLL("./line_load_example.so")
-
-# Define types to convert Numpy arrays into C arrays:
-
-# C-type corresponding to 1D numpy array
-ND_POINTER_1 = np.ctypeslib.ndpointer(dtype=np.float64, 
-                                      ndim=1,
-                                      flags="C")
-NI_POINTER_2 = np.ctypeslib.ndpointer(dtype=np.int32, 
-                                      ndim=2,
-                                      flags="C")
-
-# Define all C/C++ library API function signatures
-libpd.define_particles.argtypes = [c_size_t, ND_POINTER_1, ND_POINTER_1, ND_POINTER_1, ND_POINTER_1, ND_POINTER_1]
-libpd.define_particles.restype  = None
+import ParticleDynamics
 
 # ---------------------------------------------------------------------------- #
 
 # Call C/C++ library API functions from Python:
 
-# Spherical particle parameters
-n_particles = 100
-particle_density = 0.5 # [kg/m^3] (roughly the density of wood)
-particle_min_diameter = 0.01 # [m]
-particle_diameter_range = 1.0 # [m]
-particle_cylinder_radius = 10.0 # [m] (diameter of cylinder in which particles will be randomly distributed during initialization)
-particle_cylinder_height = 40.0 # [m] (height of cylinder in which particles will be randomly distributed during initialization)
-particle_cylinder_center = [10,0,0] # [m,m,m] (x,y,z coordinate center of cylinder)
+# Define randomized spherical particle parameters
+n_particles = 1000
+particle_density         =  0.5 # [kg/m^3] (roughly the density of wood)
+particle_min_diameter    = 0.01 # [m]
+particle_diameter_range  =  1.0 # [m]
+particle_cylinder_radius = 10.0 # [m]
+particle_cylinder_height = 40.0 # [m]
+particle_cylinder_center = [10,0,0] # [m,m,m]
+random_seed = 1
 
-# Generate a random collection of particles
-diameters = particle_min_diameter + particle_diameter_range*np.random.rand(n_particles) # [m] (ranging from 10-20 cm in diameter)
-masses = np.zeros(n_particles)
-for i in range(0,n_particles):
-    iradius = 0.5*diameters[i]
-    masses[i] = particle_density*(4.0/3.0)*math.pi*iradius*iradius*iradius # [kg] (assuming roughly spherical shape)
+# Generate random particles
+ParticleDynamics.create_random_particles(n_particles,particle_density,particle_min_diameter,particle_diameter_range,particle_cylinder_radius,particle_cylinder_height,particle_cylinder_center,random_seed)
 
-position_x = np.zeros(n_particles)
-position_y = np.zeros(n_particles)
-for i in range(0,n_particles):
-    iradial_position = particle_cylinder_radius*np.random.rand(1)
-    icircum_position = 2.0*math.pi*np.random.rand(1)
-    position_x[i] = particle_cylinder_center[0] + iradial_position[0]*math.cos(icircum_position[0])
-    position_y[i] = particle_cylinder_center[1] + iradial_position[0]*math.sin(icircum_position[0])
-position_z = particle_cylinder_center[2] + particle_cylinder_height*np.random.rand(n_particles)
-
-# Call particle_dynamics initialization API function
-libpd.define_particles(n_particles,masses,diameters,position_x,position_y,position_z)
+# Create the parameterized wind field model
+wind_field_params = np.zeros(12)
+wind_field_params[0]  = 100.0 # [m/s]      Um: reference radial velocity
+wind_field_params[1]  = 0.1   # [m]        rm: reference radius
+wind_field_params[2]  = 10.0  # [m]        zm: reference height
+wind_field_params[3]  = 2.0   #             S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
+wind_field_params[4]  = 2.0   #         gamma: 
+wind_field_params[5]  = 1.293 # [kg/m^3] rho0: reference density of air at STP
+wind_field_params[6]  = 10.0  # [m]        xc: x-position of the vortex center
+wind_field_params[7]  = 0.0   # [m]        yc: y-position of the vortex center
+wind_field_params[8]  = 0.0   # [m]        zc: z-position of the vortex center
+wind_field_params[9]  = 0.0   # [m/s]     vxc: x-velocity of the vortex center
+wind_field_params[10] = 0.0   # [m/s]     vyc: y-velocity of the vortex center
+wind_field_params[11] = 0.0   # [m/s]     vzc: z-velocity of the vortex center
+ParticleDynamics.API.define_wind_field(b"BakerSterlingVortex",wind_field_params)
 
 # ----------------------------------
 # Start of OpenSees model generation
@@ -101,12 +74,12 @@ element("Truss", 5, 3, 4, 1.0, 1)
 element("Truss", 6, 4, 2, 1.0, 1)
 
 # add LineLoad elements - command: LineLoad LineLoadID node1 node2 radius lib
-element("LineLoad",  7, 1, 2, 0.5, "line_load_example.so")
-element("LineLoad",  8, 1, 3, 0.5, "line_load_example.so")
-element("LineLoad",  9, 1, 4, 0.5, "line_load_example.so")
-element("LineLoad", 10, 2, 3, 0.5, "line_load_example.so")
-element("LineLoad", 11, 3, 4, 0.5, "line_load_example.so")
-element("LineLoad", 12, 2, 4, 0.5, "line_load_example.so")
+element("LineLoad",  7, 1, 2, 0.5, ParticleDynamics.library_name)
+element("LineLoad",  8, 1, 3, 0.5, ParticleDynamics.library_name)
+element("LineLoad",  9, 1, 4, 0.5, ParticleDynamics.library_name)
+element("LineLoad", 10, 2, 3, 0.5, ParticleDynamics.library_name)
+element("LineLoad", 11, 3, 4, 0.5, ParticleDynamics.library_name)
+element("LineLoad", 12, 2, 4, 0.5, ParticleDynamics.library_name)
 
 # create TimeSeries
 timeSeries("Linear", 1)

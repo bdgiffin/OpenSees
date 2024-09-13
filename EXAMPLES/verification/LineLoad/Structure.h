@@ -3,6 +3,7 @@
 
 #include "SpatialHash.h"
 #include "WindField.h"
+#include "Logger.h"
 #include <algorithm>
 #include <vector>
 #include <set>
@@ -90,7 +91,7 @@ struct Structure {
 
   // Initialize the Structure object (assuming all members have been defined)
   void initialize(void) {
-    std::cout << "Initializing Structure object with " << num_members << " members defined" << std::endl;
+    DEBUG(std::cout << "Initializing Structure object with " << num_members << " members defined" << std::endl;)
     
     // initialize stored data for all members
     fx1.resize(num_members);

@@ -5,6 +5,7 @@
 #include "Structure.h"
 #include "Particles.h"
 #include "Parameters.h"
+#include "Logger.h"
 #include <string>
 #include <vector>
 #include <set>
@@ -30,7 +31,7 @@ struct ParticleDynamics {
   // Initialize the particle dynamics simulation
   void initialize() {
 
-    std::cout << "Initializing ParticleDynamics object" << std::endl;
+    DEBUG(std::cout << "Initializing ParticleDynamics object" << std::endl;)
 
     // Initialize the global gravitational acceleration constant
     gz = -9.8; // [m/s^2]
@@ -41,13 +42,14 @@ struct ParticleDynamics {
     // Initialize all model sub-components:
 
     // Set WindField model parameters
-    std::string wind_model_type = "BakerSterlingVortex";
-    Parameters wind_model_parameters;
-    wind_model_parameters["initial_center"]  = std::vector<double>({ 10.0, 0.0, 0.0 }); // [m]
-    wind_model_parameters["center_velocity"] = std::vector<double>({  0.0, 0.0, 0.0 });  // [m/s]
+    //std::string wind_model_type = "BakerSterlingVortex";
+    //Parameters wind_model_parameters;
+    //wind_model_parameters["initial_center"]  = std::vector<double>({ 10.0, 0.0, 0.0 }); // [m]
+    //wind_model_parameters["center_velocity"] = std::vector<double>({  0.0, 0.0, 0.0 });  // [m/s]
     
     // Initialize the WindField model
-    wind_model = new_WindField(wind_model_type,wind_model_parameters);
+    //wind_model = new_WindField(wind_model_type,wind_model_parameters);
+    wind_model->initialize();
 
     // Initialize the debris Particles
     debris.initialize(wind_model);
@@ -70,7 +72,7 @@ struct ParticleDynamics {
 
     // conditionally update the simulation state to the new analysis time
     if (time_in > time) {
-      std::cout << "  Updating ParticleDynamics to new requested time state: " << time_in << " (old time: " << time << ")" << std::endl;
+      DEBUG(std::cout << "  Updating ParticleDynamics to new requested time state: " << time_in << " (old time: " << time << ")" << std::endl;)
     
       // determine the current time increment (the difference between the old and new times)
       double t0 = time;
@@ -84,7 +86,7 @@ struct ParticleDynamics {
       double dt_sub = time_increment/Nsub_steps;
 
       // loop over sub-steps and take time steps
-      std::cout << "  ParticleDynamics - number of sub-steps for the current time increment: " << Nsub_steps << std::endl;
+      DEBUG(std::cout << "  ParticleDynamics - number of sub-steps for the current time increment: " << Nsub_steps << std::endl;)
       for (int i=0; i < Nsub_steps; i++) {
 	time_step(t0 + (i+1)*dt_sub);
       }

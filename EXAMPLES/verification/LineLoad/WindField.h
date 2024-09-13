@@ -2,6 +2,7 @@
 #define WIND_FIELD_H
 
 #include "Parameters.h"
+#include "Logger.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -19,6 +20,9 @@ public:
   // ------------------- Declare public member functions ------------------ //
 
   WindField(void) {} // Empty default constructor method
+
+  // Default (blank) initialization routine
+  virtual void initialize(void) { }
 
   // Pure virtual method to compute the fluid velocity and density at a specified time,
   // and at multiple evaluation points simultaneously
@@ -40,6 +44,25 @@ class BakerSterlingVortex : public WindField {
 public:
 
   // ------------------- Declare public member functions ------------------ //
+
+  // Parameterized constructor method
+  BakerSterlingVortex(double* parameters) : WindField() {
+    DEBUG(std::cout << "Creating new BakerSterlingVortex WindField model" << std::endl;)
+    Um    = parameters[0];  // [m/s] reference radial velocity
+    rm    = parameters[1];  // [m]   reference radius
+    zm    = parameters[2];  // [m]   reference height
+    S     = parameters[3];  // swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
+    K     = S*(2.0/std::log(2.0));
+    gamma = parameters[4];
+    delta = zm/rm;
+    rho0  = parameters[5];  // [kg/m^3] reference density of air at STP
+    xc    = parameters[6];  // [m]
+    yc    = parameters[7];  // [m]
+    zc    = parameters[8];  // [m]
+    vxc   = parameters[9];  // [m/s]
+    vyc   = parameters[10]; // [m/s]
+    vzc   = parameters[11]; // [m/s]
+  } // BakerSterlingVortex()
 
   // Parameterized constructor method
   BakerSterlingVortex(Parameters& parameters) : WindField() {
@@ -124,6 +147,24 @@ private:
 
 
 // Factory method to create a new WindField model from (generic) parameterized inputs
+WindField* new_WindField(const char* type_cstr, double* parameters) {
+
+  // Attempt to create a new wind field model given the passed input parameters
+  std::string type(type_cstr);
+  if (type == "BakerSterlingVortex") {
+    return new BakerSterlingVortex(parameters);
+  } else {
+    std::cerr << "ERROR in `" <<  __func__ << "`; unrecognized WindField type: " << type << std::endl;
+    return nullptr;
+  }
+  
+} // new_WindField()
+
+
+// ---------------------------------------------------------------------- //
+
+
+// Factory method to create a new WindField model from (generic) parameterized inputs
 WindField* new_WindField(std::string type, Parameters& parameters) {
 
   // Attempt to create a new wind field model
@@ -134,7 +175,7 @@ WindField* new_WindField(std::string type, Parameters& parameters) {
     return nullptr;
   }
   
-} // new_wind_model()
+} // new_WindField()
 
 
 // ======================================================================== //
