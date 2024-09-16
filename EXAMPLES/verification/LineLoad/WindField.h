@@ -38,8 +38,11 @@ public:
 // ======================================================================== //
 
 
-// Example derived class for a vortex wind field (Baker & Sterling, 2017)
-// https://www.sciencedirect.com/science/article/pii/S0167610517301174
+// Derived class for a vortex wind field (Baker & Sterling, 2017)
+// For details on the originally proposed model:
+// - https://www.sciencedirect.com/science/article/pii/S0167610517301174
+// For details on how translational effects should be incorporated into the model:
+// - https://www.sciencedirect.com/science/article/pii/S0167610517301186
 class BakerSterlingVortex : public WindField {
 public:
 
@@ -56,9 +59,9 @@ public:
     gamma = parameters[4];
     delta = zm/rm;
     rho0  = parameters[5];  // [kg/m^3] reference density of air at STP
-    xc    = parameters[6];  // [m]
-    yc    = parameters[7];  // [m]
-    zc    = parameters[8];  // [m]
+    xc0   = parameters[6];  // [m]
+    yc0   = parameters[7];  // [m]
+    zc0   = parameters[8];  // [m]
     vxc   = parameters[9];  // [m/s]
     vyc   = parameters[10]; // [m/s]
     vzc   = parameters[11]; // [m/s]
@@ -68,9 +71,9 @@ public:
   BakerSterlingVortex(Parameters& parameters) : WindField() {
     if (parameters.count("initial_center") > 0) {
       std::vector<double> xyzc = parameters["initial_center"];
-      xc = xyzc[0];
-      yc = xyzc[1];
-      zc = xyzc[2];
+      xc0 = xyzc[0];
+      yc0 = xyzc[1];
+      zc0 = xyzc[2];
     }
   } // BakerSterlingVortex()
 
@@ -81,9 +84,9 @@ public:
 				              double* vx, double* vy, double* vz, double* rhof) {
 
     // Define the shifted center of the vortex at the current evaluation time
-    double xct = xc + vxc*time; // [m]
-    double yct = yc + vyc*time; // [m]
-    double zct = zc + vzc*time; // [m]
+    double xct = xc0 + vxc*time; // [m]
+    double yct = yc0 + vyc*time; // [m]
+    double zct = zc0 + vzc*time; // [m]
 
     // Loop over all evaluation points
     for (int i=0; i<num_points; i++) {
@@ -95,6 +98,15 @@ public:
       double sinp = (y[i]-yct)*inv_rp;
       double rbar = rp/rm;
       double zbar = (z[i]-zct)/zm;
+
+      // Ignore points that are sufficiently far away
+      if ((rbar > 100.0) || (zbar > 100.0)) {
+	vx[i]   = 0.0;
+	vy[i]   = 0.0;
+	vz[i]   = 0.0;
+	rhof[i] = 0.0;
+	continue;
+      }
 
       // Compute normalized radial, tangential, and vertical velocity of the vortex
       double one_rbar2 = 1.0 + rbar*rbar;
@@ -112,6 +124,25 @@ public:
       // Assume the density is constant
       rhof[i] = rho0;
 
+      // Check for nan/inf values
+      DEBUG(
+      if ((inv_rp != inv_rp) || (log_one_zbar2 != log_one_zbar2) || (Ubar != Ubar) || (Vbar != Vbar) || (Wbar != Wbar)) {
+	std::cout << "Bad BakerSterlingVortex velocity computed at evaluation point " << i << std::endl;
+	std::cout << " time " <<  time << std::endl;
+	std::cout << "    x " <<  x[i] << std::endl;
+	std::cout << "    y " <<  y[i] << std::endl;
+	std::cout << "    z " <<  z[i] << std::endl;
+	std::cout << " inv_rp " << inv_rp << std::endl;
+	std::cout << " zbar " << zbar << std::endl;
+	std::cout << " one_zbar2 " << one_zbar2 << std::endl;
+	std::cout << " log_one_zbar2 " << log_one_zbar2 << std::endl;
+	std::cout << " Ubar " <<  Ubar << std::endl;
+	std::cout << " Vbar " <<  Vbar << std::endl;
+	std::cout << " Wbar " <<  Wbar << std::endl;
+	std::exit(1);
+      }
+	    )
+
     } // for i=1,...,num_points
 
   } // get_fluid_velocity_and_density()
@@ -123,22 +154,22 @@ private:
   // -------------------- Declare private data members -------------------- //
 
   // Define reference values and constants for use in dimensionless evaluations
-  double Um = 100.0; // [m/s] reference radial velocity
-  double rm = 0.1;   // [m]   reference radius
-  double zm = 10.0;  // [m]   reference height
-  double S = 2.0;    // swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
-  double K = S*(2.0/std::log(2.0));
-  double gamma = 2.0;
-  double delta = zm/rm;
-  double rho0 = 1.293; // [kg/m^3] reference density of air at STP
+  double Um; // [m/s] reference radial velocity
+  double rm; // [m]   reference radius
+  double zm; // [m]   reference height
+  double S;  // swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
+  double K;
+  double gamma;
+  double delta;
+  double rho0; // [kg/m^3] reference density of air at STP
 
   // Define the center of the vortex, and its translational velocity
-  double xc  = 10.0; // [m]
-  double yc  = 0.0;  // [m]
-  double zc  = 0.0;  // [m]
-  double vxc = 0.0;  // [m/s]
-  double vyc = 0.0;  // [m/s]
-  double vzc = 0.0;  // [m/s]
+  double xc0; // [m]
+  double yc0; // [m]
+  double zc0; // [m]
+  double vxc; // [m/s]
+  double vyc; // [m/s]
+  double vzc; // [m/s]
 
 }; // BakerSterlingVortex
 

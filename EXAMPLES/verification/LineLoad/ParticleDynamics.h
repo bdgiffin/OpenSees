@@ -125,8 +125,8 @@ private:
     // apply contact forces between the Particles and the Structure
     for (int i=0; i<debris.num_particles; i++) {
       members.find_and_apply_contact_forces(debris.contact_stiff,debris.radius[i],
-					    debris.x[i],debris.y[i],debris.z[i],
-				            debris.fx[i],debris.fy[i],debris.fz[i]);
+    					    debris.x[i],debris.y[i],debris.z[i],
+    				            debris.fx[i],debris.fy[i],debris.fz[i]);
     }
 
     // apply boundary forces to the Particles

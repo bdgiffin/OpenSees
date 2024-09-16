@@ -48,13 +48,13 @@ extern "C" {
   // ------------------------------------------------------------------------ //
 
   // Retrieve current particle field data at the current analysis time
-  // { x, y, z}: arrays of vector components of particle positions at the current time
+  // {ux,uy,uz}: arrays of vector components of particle displacements at the current time
   // {vx,vy,vz}: arrays of vector components of particle velocities at the current time
   // {fx,fy,fz}: arrays of vector components of particle forces at the current time
-  void get_particle_field_data(double  *x, double  *y, double  *z,
+  void get_particle_field_data(double *ux, double *uy, double *uz,
 	 	               double *vx, double *vy, double *vz,
 		               double *fx, double *fy, double *fz) {
-    particle_dynamics.debris.get_field_data(x,y,z,vx,vy,vz,fx,fy,fz);
+    particle_dynamics.debris.get_field_data(ux,uy,uz,vx,vy,vz,fx,fy,fz);
   } // get_particle_field_data()
   
   // ------------------------------------------------------------------------ //

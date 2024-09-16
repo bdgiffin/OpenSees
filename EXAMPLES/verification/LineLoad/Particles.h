@@ -44,14 +44,14 @@ struct Particles {
   // ---------------------------------------------------------------------- //
 
   // Method to retrieve field data for all compact particles at the current time
-  void get_field_data(double  *x_out, double  *y_out, double  *z_out,
+  void get_field_data(double *ux_out, double *uy_out, double *uz_out,
 	 	      double *vx_out, double *vy_out, double *vz_out,
 		      double *fx_out, double *fy_out, double *fz_out) {
 
     for (int i=0; i<num_particles; i++) {
-      x_out[i]  =  x[i];
-      y_out[i]  =  y[i];
-      z_out[i]  =  z[i];
+      ux_out[i] =  x[i] - x0[i];
+      uy_out[i] =  y[i] - y0[i];
+      uz_out[i] =  z[i] - z0[i];
       vx_out[i] = vx[i];
       vy_out[i] = vy[i];
       vz_out[i] = vz[i];
