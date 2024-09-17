@@ -177,32 +177,112 @@ private:
 // ======================================================================== //
 
 
+// Derived class for a Rankine vortex wind field
+class RankineVortex : public WindField {
+public:
+
+  // ------------------- Declare public member functions ------------------ //
+
+  // Parameterized constructor method
+  RankineVortex(double* parameters) : WindField() {
+    DEBUG(std::cout << "Creating new RankineVortex WindField model" << std::endl;)
+    Um    = parameters[0];  // [m/s] reference tangential velocity
+    rm    = parameters[1];  // [m]   reference radius
+    rc    = parameters[2];  // [m]   reference height
+    E     = parameters[3];  // swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
+    //      parameters[4];  // (unused)
+    rho0  = parameters[5];  // [kg/m^3] reference density of air at STP
+    xc0   = parameters[6];  // [m]
+    yc0   = parameters[7];  // [m]
+    zc0   = parameters[8];  // [m]
+    vxc   = parameters[9];  // [m/s]
+    vyc   = parameters[10]; // [m/s]
+    vzc   = parameters[11]; // [m/s]
+  } // RankineVortex()
+
+  // Virtual method implementation to compute the fluid velocity and density at a specified time,
+  // and at multiple evaluation points simultaneously
+  virtual void get_fluid_velocity_and_density(int num_points, double time,
+				              const double* x, const double* y, const double* z,
+				              double* vx, double* vy, double* vz, double* rhof) {
+
+    // Define the shifted center of the vortex at the current evaluation time
+    double xct = xc0 + vxc*time; // [m]
+    double yct = yc0 + vyc*time; // [m]
+    //double zct = zc0 + vzc*time; // [m]
+
+    // Loop over all evaluation points
+    for (int i=0; i<num_points; i++) {
+
+      // Compute normalized radial and height coordinates
+      double rp = std::sqrt((x[i]-xct)*(x[i]-xct) + (y[i]-yct)*(y[i]-yct));
+      double inv_rp = 1.0/(rp+std::numeric_limits<double>::min());
+      double cosp = (x[i]-xct)*inv_rp;
+      double sinp = (y[i]-yct)*inv_rp;
+      double rbar = rp/rc;
+
+      // Compute normalized tangential velocity of the vortex
+      double vtf;
+      if (rp<rm) {
+	if (rp<rc) {
+	  vtf = Um*rbar;
+	} else {
+	  vtf = Um*std::pow(1.0/(rbar+std::numeric_limits<double>::min()),E);
+	}
+      } else {
+	vtf = 0.0;
+      }
+
+      // Compute the x,y,z components of the fluid velocity
+      vx[i] = vxc - vtf*sinp;
+      vy[i] = vyc + vtf*cosp;
+      vz[i] = vzc;
+
+      // Assume the density is constant
+      rhof[i] = rho0;
+
+    } // for i=1,...,num_points
+
+  } // get_fluid_velocity_and_density()
+
+  // ---------------------------------------------------------------------- //
+  
+private:
+  
+  // -------------------- Declare private data members -------------------- //
+
+  // Define reference values and constants for use in dimensionless evaluations
+  double Um;   // [m/s] reference radial velocity
+  double rm;   // [m]   reference outer radius
+  double rc;   // [m]   reference core radius
+  double E;    // decay index
+  double rho0; // [kg/m^3] reference density of air at STP
+
+  // Define the center of the vortex, and its translational velocity
+  double xc0; // [m]
+  double yc0; // [m]
+  double zc0; // [m]
+  double vxc; // [m/s]
+  double vyc; // [m/s]
+  double vzc; // [m/s]
+
+}; // RankineVortex
+
+
+// ======================================================================== //
+
+
 // Factory method to create a new WindField model from (generic) parameterized inputs
 WindField* new_WindField(const char* type_cstr, double* parameters) {
 
   // Attempt to create a new wind field model given the passed input parameters
   std::string type(type_cstr);
-  if (type == "BakerSterlingVortex") {
+  if        (type == "BakerSterlingVortex") {
     return new BakerSterlingVortex(parameters);
+  } else if (type == "RankineVortex") {
+    return new RankineVortex(parameters);
   } else {
     std::cerr << "ERROR in `" <<  __func__ << "`; unrecognized WindField type: " << type << std::endl;
-    return nullptr;
-  }
-  
-} // new_WindField()
-
-
-// ---------------------------------------------------------------------- //
-
-
-// Factory method to create a new WindField model from (generic) parameterized inputs
-WindField* new_WindField(std::string type, Parameters& parameters) {
-
-  // Attempt to create a new wind field model
-  if (type == "BakerSterlingVortex") {
-    return new BakerSterlingVortex(parameters);
-  } else {
-    std::cerr << "ERROR in `new_wind_model()`; unrecognized WindField type: " << type << std::endl;
     return nullptr;
   }
   

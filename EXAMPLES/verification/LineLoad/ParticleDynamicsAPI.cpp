@@ -54,6 +54,8 @@ extern "C" {
   void get_particle_field_data(double *ux, double *uy, double *uz,
 	 	               double *vx, double *vy, double *vz,
 		               double *fx, double *fy, double *fz) {
+    // conditionally initialize the simulation state
+    if (!particle_dynamics.initialized()) particle_dynamics.initialize();
     particle_dynamics.debris.get_field_data(ux,uy,uz,vx,vy,vz,fx,fy,fz);
   } // get_particle_field_data()
   
@@ -65,6 +67,8 @@ extern "C" {
   // {vx,vy,vz}: arrays of vector components of velocities at sampling points
   //       rhof: array of fluid densities at sampling points
   void get_wind_field_data(size_t Npoints, double *x, double *y, double *z, double *vx, double *vy, double *vz, double *rhof) {
+    // conditionally initialize the simulation state
+    if (!particle_dynamics.initialized()) particle_dynamics.initialize();
     particle_dynamics.wind_model->get_fluid_velocity_and_density(Npoints,particle_dynamics.time,x,y,z,vx,vy,vz,rhof);
   } // get_particle_field_data()
   

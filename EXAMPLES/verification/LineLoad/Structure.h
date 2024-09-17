@@ -230,8 +230,9 @@ struct Structure {
   // ---------------------------------------------------------------------- //
   
   // find and apply contact interaction forces between all members and a single particle "p"
-  void find_and_apply_contact_forces(double contact_stiff, double rp,
+  void find_and_apply_contact_forces(double contact_stiff, double contact_damp, double rp,
 				     double xp, double yp, double zp,
+				     double vxp, double vyp, double vzp,
 			             double& fxp, double& fyp, double& fzp) {
     
     // find the range of grid cells that overlap with the bounding box surrounding the current particle
@@ -255,7 +256,8 @@ struct Structure {
       }
       // apply contact forces between the current particle and the found (unique) segments
       for (int s : segment_ids) {
-	apply_contact_force(s,contact_stiff,rp,xp,yp,zp,fxp,fyp,fzp);
+	DEBUG(std::cout << "Contact occured with segment " << s << std::endl;)
+	apply_contact_force(s,contact_stiff,contact_damp,rp,xp,yp,zp,vxp,vyp,vzp,fxp,fyp,fzp);
       }
     }
     
@@ -264,8 +266,8 @@ struct Structure {
   // ---------------------------------------------------------------------- //
   
   // compute contact interaction force between a single member "s" and a particle "p"
-  void apply_contact_force(int s, double contact_stiff, double rp, double xp, double yp, double zp,
-			   double& fxp, double& fyp, double& fzp) {
+  void apply_contact_force(int s, double contact_stiff, double contact_damp, double rp, double xp, double yp, double zp,
+			   double vxp, double vyp, double vzp, double& fxp, double& fyp, double& fzp) {
     
     // get the shifted coordinates of the joints of the current member
     // measured relative to the current particle's position
@@ -309,19 +311,28 @@ struct Structure {
     double dz = xi1*jz1 + xi2*jz2;
     double dl = std::sqrt(dx*dx + dy*dy + dz*dz);
 
-    // compute the contact force acting on the particle
-    double fc = contact_stiff*std::min(0.0,dl-rp)/dl;
-    fxp += fc*dx;
-    fyp += fc*dy;
-    fzp += fc*dz;
+    // compute the gap
+    double gap = dl-rp;
 
-    // compute the contact force acting on the member (distributed to the joints)
-    fx1[s] -= xi1*fc*dx;
-    fy1[s] -= xi1*fc*dy;
-    fz1[s] -= xi1*fc*dz;
-    fx2[s] -= xi2*fc*dx;
-    fy2[s] -= xi2*fc*dy;
-    fz2[s] -= xi2*fc*dz;
+    // compute the gap rate
+    double dgap_dt = - (dx*vxp + dy*vyp + dz*vzp)/dl;
+    
+    // apply contact force if the gap is negative (the members are in contact)
+    if (gap < 0.0) {
+      // compute the contact force acting on the particle
+      double fc = contact_stiff*gap/dl;
+      fxp += fc*dx;
+      fyp += fc*dy;
+      fzp += fc*dz;
+
+      // compute the contact force acting on the member (distributed to the joints)
+      fx1[s] -= xi1*fc*dx;
+      fy1[s] -= xi1*fc*dy;
+      fz1[s] -= xi1*fc*dz;
+      fx2[s] -= xi2*fc*dx;
+      fy2[s] -= xi2*fc*dy;
+      fz2[s] -= xi2*fc*dz;
+    }
     
   } // apply_contact_force()
 

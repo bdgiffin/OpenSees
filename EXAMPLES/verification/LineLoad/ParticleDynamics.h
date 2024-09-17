@@ -40,15 +40,8 @@ struct ParticleDynamics {
     time = 0.0; // [s]
 
     // Initialize all model sub-components:
-
-    // Set WindField model parameters
-    //std::string wind_model_type = "BakerSterlingVortex";
-    //Parameters wind_model_parameters;
-    //wind_model_parameters["initial_center"]  = std::vector<double>({ 10.0, 0.0, 0.0 }); // [m]
-    //wind_model_parameters["center_velocity"] = std::vector<double>({  0.0, 0.0, 0.0 });  // [m/s]
     
     // Initialize the WindField model
-    //wind_model = new_WindField(wind_model_type,wind_model_parameters);
     wind_model->initialize();
 
     // Initialize the debris Particles
@@ -79,7 +72,7 @@ struct ParticleDynamics {
       double time_increment = time_in - time;
 
       // determine the maximum allowable (stable) time step size
-      double dt_max = debris.stable_time_step();
+      double dt_max = dt_scale_factor*debris.stable_time_step();
 
       // subdivide the increment into sub-steps based upon the stable time step size
       int Nsub_steps = std::ceil(time_increment/dt_max);
@@ -124,8 +117,9 @@ private:
 
     // apply contact forces between the Particles and the Structure
     for (int i=0; i<debris.num_particles; i++) {
-      members.find_and_apply_contact_forces(debris.contact_stiff,debris.radius[i],
+      members.find_and_apply_contact_forces(debris.contact_stiff,debris.contact_damp[i],debris.radius[i],
     					    debris.x[i],debris.y[i],debris.z[i],
+    					    debris.vx[i],debris.vy[i],debris.vz[i],
     				            debris.fx[i],debris.fy[i],debris.fz[i]);
     }
 
@@ -144,6 +138,7 @@ public:
   // --------------------- Declare public data members -------------------- //
 
   double time; // Current analysis time
+  double dt_scale_factor = 0.9; // Stable time step scale factor
   double gz;   // Gravitational acceleration constant
   bool   is_initialized = false; // Initialization flag
 

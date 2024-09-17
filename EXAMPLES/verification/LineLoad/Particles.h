@@ -65,15 +65,17 @@ struct Particles {
   // ---------------------------------------------------------------------- //
 
   // Initialize the Particles object (assuming all particles have been defined)
-  void initialize(WindField* wind_model, double initial_time = 0.0, double new_drag_coeff = 0.47, double new_contact_stiff = 1.0e+2) {
+  void initialize(WindField* wind_model, double initial_time = 0.0, double new_drag_coeff = 0.47, double new_contact_stiff = 1.0e+2, double new_contact_damp_ratio = 0.5) {
     
     DEBUG(std::cout << "Initializing Particles object with " << num_particles << " particles defined" << std::endl;)
 
     // Set constants common to all particles
-    drag_coeff    = new_drag_coeff;    // (default = 0.47 for an assumed spherical particle)
-    contact_stiff = new_contact_stiff; // [N/m] = [kg/s^2]
+    drag_coeff         = new_drag_coeff;         // (default = 0.47 for an assumed spherical particle)
+    contact_stiff      = new_contact_stiff;      // [N/m] = [kg/s^2]
+    contact_damp_ratio = new_contact_damp_ratio; // (default = 0.5 for 50% of critical damping relative to the contact stiffness)
 
     // Initialize stored data for all particles
+    contact_damp.resize(num_particles);
     x.resize(num_particles);
     y.resize(num_particles);
     z.resize(num_particles);
@@ -85,13 +87,15 @@ struct Particles {
     fz.resize(num_particles);
 
     // determine the fluid velocity and density at the initial positions of all particles
-    static std::vector<double> rhof(num_particles);
+    std::vector<double> rhof(num_particles);
     wind_model->get_fluid_velocity_and_density(num_particles,initial_time,x0.data(),y0.data(),z0.data(),
 					       vx.data(),vy.data(),vz.data(),rhof.data());
     
     // initialize the particle's position, and set its initial velocity as a specified fraction of the surrounding fluid velocity
     double initial_velocity_fraction = 0.8;
     for (int i=0; i<num_particles; i++) {
+      double critical_damp = 2.0*std::sqrt(contact_stiff*mass[i]);
+      contact_damp[i] = contact_damp_ratio*critical_damp;
       x[i]   = x0[i];
       y[i]   = y0[i];
       z[i]   = z0[i];
@@ -193,12 +197,16 @@ struct Particles {
     // Loop over all particles
     for (int i=0; i<num_particles; i++) {
 
-      // compute the normal gap function for the current particle
+      // compute the normal gap functio for the current particle
       double gap = (x[i] - xp)*nx + (y[i] - yp)*ny + (z[i] - zp)*nz;
 
+      // compute the normal gap rate (assuming the boundary plane is not moving) for the current particle
+      double dgap_dt = vx[i]*nx + vy[i]*ny + vz[i]*nz;
+
       // if interpenetration detected, apply contact force to the current particle
+      // the contact force includes combined stiffness and damping effects
       if (gap < 0.0) {
-	double contact_force = -contact_stiff*gap;
+	double contact_force = - contact_stiff*gap - contact_damp[i]*dgap_dt;
 	fx[i] += contact_force*nx;
 	fy[i] += contact_force*ny;
 	fz[i] += contact_force*nz;
@@ -233,17 +241,19 @@ struct Particles {
   // --------------------- Declare public data members -------------------- //
 
   // Common constants defined for all particles
-  int num_particles;    // The total number of particles
-  double drag_coeff;    // Drag coefficient for all particles
-  double contact_stiff; // Contact spring stiffness for all particles [N/m] = [kg/s^2]
+  int num_particles;         // The total number of particles
+  double drag_coeff;         // Drag coefficient for all particles
+  double contact_stiff;      // Contact spring stiffness for all particles [N/m] = [kg/s^2]
+  double contact_damp_ratio; // Contact damping ratio for all particles
 
   // Data defined separately for each particle
-  std::vector<double> mass;       // The masses defined for all particles
-  std::vector<double> radius;     // The radii of all particles
-  std::vector<double> x0, y0, z0; // The initial spatial coordinates of all particles
-  std::vector<double>  x,  y,  z; // The current spatial coordinates of all particles
-  std::vector<double> vx, vy, vz; // The current velocity of all particles
-  std::vector<double> fx, fy, fz; // The current forces applied to all particles
+  std::vector<double> mass;         // The masses defined for all particles
+  std::vector<double> radius;       // The radii of all particles
+  std::vector<double> contact_damp; // The contact damping for all particles
+  std::vector<double> x0, y0, z0;   // The initial spatial coordinates of all particles
+  std::vector<double>  x,  y,  z;   // The current spatial coordinates of all particles
+  std::vector<double> vx, vy, vz;   // The current velocity of all particles
+  std::vector<double> fx, fy, fz;   // The current forces applied to all particles
   
   // ---------------------------------------------------------------------- //
 
