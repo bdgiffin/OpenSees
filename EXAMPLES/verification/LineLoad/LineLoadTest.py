@@ -1,16 +1,79 @@
 # Module for OpenSees
+# NOTE: THE LOCALLY MODIFIED VERSION OF OPENSEES WITH THE LINELOAD ELEMENT MUST BE USED
 from openseespy.opensees import *
 
-# Other needed Python packages
-import numpy as np
+# Module for ParticleDynamics
 import ParticleDynamics
+
+# Python package for reading/writing data in the Exodus mesh database format
+# NOTE: PYEXODUS V0.1.5 NEEDS TO BE MODIFIED TO WORK CORRECTLY WITH PYTHON 3.12
+# https://pypi.org/project/pyexodus/
+import pyexodus
+
+# Other needed Python packages
+import sys
+import os
+import math
+import time as timer
+from datetime import timedelta
+import numpy as np
+from argparse import ArgumentParser
+
+# ---------------------------------------------------------------------------- #
+
+# read any input arguments the user may have provided
+parser = ArgumentParser()
+parser.add_argument("-f", "--file", dest="filename",
+                    help="input Exodus model file for the frame structure", metavar="FILE")
+parser.add_argument("-q", "--quiet",
+                    action="store_false", dest="verbose", default=True,
+                    help="don't print status messages to stdout")
+args = parser.parse_args()
+
+# ---------------------------------------------------------------------------- #
+
+# check to make sure that the user has specified an Exodus file to define the geometry of the structure
+if args.filename is None:
+    print("ERROR: a valid Exodus model file must be specified to define the frame structure's geometry.")
+    quit()
+
+# read data from the Exodus model file for the frame structure
+exoin = pyexodus.exodus(file=args.filename, mode='r', array_type='numpy', title=None, numDims=None, numNodes=None, numElems=None, numBlocks=None, numNodeSets=None, numSideSets=None, io_size=0, compression=None)
+x_in,y_in,z_in = exoin.get_coords() # [m] (assumed units/dimensions of structure expressed in meters)
+n_joints = len(x_in)
+connect_in,n_members,n_nodes_per_member = exoin.get_elem_connectivity(id=1)
+exoin.close()
+
+# do some model pre-processing: identify the joints with supports
+supports = []
+for i in range(0,n_joints):
+    if (abs(z_in[i]) < 1.0e-6):
+        supports.append(i)
+
+# define the cross-sectional area, effective member radius, and mass density assigned to all members
+steel_mass_density = 7850.0 # [kg/m^3] (mass density of steel)
+cross_sectional_area = 0.00065 # (cross-sectional area 1in^2 = 0.00065m^2)
+eff_radius = 0.05 # (effective radius 2in = 0.05m)
+        
+# lump the nodal masses to the joints of the structure
+lumped_mass = np.zeros(n_joints)
+for i in range(0,n_members):
+    i1 = connect_in[i][0]-1
+    i2 = connect_in[i][1]-1
+    dx = x_in[i2] - x_in[i1]
+    dy = y_in[i2] - y_in[i1]
+    dz = z_in[i2] - z_in[i1]
+    member_length = math.sqrt(dx*dx + dy*dy + dz*dz)
+    member_mass   = steel_mass_density*cross_sectional_area*member_length
+    lumped_mass[i1] = lumped_mass[i1] + 0.5*member_mass
+    lumped_mass[i2] = lumped_mass[i2] + 0.5*member_mass
 
 # ---------------------------------------------------------------------------- #
 
 # Call C/C++ library API functions from Python:
 
 # Define randomized spherical particle parameters
-n_particles = 1000
+n_particles = 100
 particle_density         =  0.5 # [kg/m^3] (roughly the density of wood)
 particle_min_diameter    = 0.01 # [m]
 particle_diameter_range  =  1.0 # [m]
@@ -70,46 +133,33 @@ model('basic', '-ndm', 3, '-ndf', 3)	       # 3 dimensions, 3 dof per node
 # define GEOMETRY -------------------------------------------------------------
 
 # nodal coordinates:
-node(1, 0.0, 0.0, 0.0) # [m] (node, X, Y, Z)
-node(2, 3.0, 0.0, 0.0) # [m]
-node(3, 0.0, 3.0, 0.0) # [m]
-node(4, 0.0, 0.0, 3.0) # [m]
+for i in range(0,n_joints):
+    node(i+1, x_in[i], y_in[i], z_in[i]) # [m] (node, X, Y, Z)
 
 # Single point constraints -- Boundary Conditions
-fix(1, 1, 1, 1) # node DX DY DZ
-fix(2, 0, 1, 1)
-fix(3, 0, 0, 1)
+for isupport in supports:
+    fix(isupport+1, 1, 1, 1) # node DX DY DZ
 
 # define MATERIAL -------------------------------------------------------------
 
 # nodal masses:
-mass(1, 20.0, 20.0, 20.0) # [kg] node#, Mx My Mz, Mass=Weight/g.
-mass(2, 20.0, 20.0, 20.0)
-mass(3, 20.0, 20.0, 20.0)
-mass(4, 20.0, 20.0, 20.0)
+for i in range(0,n_joints):
+    mass(i+1, lumped_mass[i], lumped_mass[i], lumped_mass[i]) # [kg] node#, Mx My Mz, Mass=Weight/g.
 
 # define materials
 uniaxialMaterial("Elastic", 1, 200.0e+9) # [kg*m/s^2] modulus of elasticity of steel (200 GPa)
 
 # Define ELEMENTS -------------------------------------------------------------
 
+# NOTE: The structure should be represented in terms of nonlinear beam-column elements, rather than simple truss elements
+
 # define truss element connectivity
-# (cross-sectional area 1in^2 = 0.00065m^2)
-element("Truss", 1, 1, 2, 0.00065, 1) # [m^2] (Truss, TrussID, node1, node2, area, material)
-element("Truss", 2, 1, 3, 0.00065, 1) # [m^2]
-element("Truss", 3, 1, 4, 0.00065, 1) # [m^2]
-element("Truss", 4, 2, 3, 0.00065, 1) # [m^2]
-element("Truss", 5, 3, 4, 0.00065, 1) # [m^2]
-element("Truss", 6, 4, 2, 0.00065, 1) # [m^2]
+for i in range(0,n_members):
+    element("Truss", i+1, int(connect_in[i][0]), int(connect_in[i][1]), cross_sectional_area, 1) # [m^2] (Truss, TrussID, node1, node2, area, material)
 
 # define LineLoad elements
-# (effective radius 2in = 0.05m)
-element("LineLoad",  7, 1, 2, 0.05, ParticleDynamics.library_name) # [m] (LineLoad, LineLoadID, node1, node2, radius, library)
-element("LineLoad",  8, 1, 3, 0.05, ParticleDynamics.library_name) # [m]
-element("LineLoad",  9, 1, 4, 0.05, ParticleDynamics.library_name) # [m]
-element("LineLoad", 10, 2, 3, 0.05, ParticleDynamics.library_name) # [m]
-element("LineLoad", 11, 3, 4, 0.05, ParticleDynamics.library_name) # [m]
-element("LineLoad", 12, 2, 4, 0.05, ParticleDynamics.library_name) # [m]
+for i in range(0,n_members):
+    element("LineLoad", i+1+n_members, int(connect_in[i][0]), int(connect_in[i][1]), eff_radius, ParticleDynamics.library_name) # [m] (LineLoad, LineLoadID, node1, node2, radius, library)
 
 # RECORDER -------------------------------------------------------------
 

@@ -320,7 +320,7 @@ struct Structure {
     // apply contact force if the gap is negative (the members are in contact)
     if (gap < 0.0) {
       // compute the contact force acting on the particle
-      double fc = contact_stiff*gap/dl;
+      double fc = (contact_stiff*gap + contact_damp*dgap_dt)/dl;
       fxp += fc*dx;
       fyp += fc*dy;
       fzp += fc*dz;
