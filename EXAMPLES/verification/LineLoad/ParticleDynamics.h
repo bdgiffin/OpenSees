@@ -78,11 +78,17 @@ struct ParticleDynamics {
       int Nsub_steps = std::ceil(time_increment/dt_max);
       double dt_sub = time_increment/Nsub_steps;
 
+      // zero-initialize the impulse applied to the Structure over the current time increment
+      members.zero_impulse();
+
       // loop over sub-steps and take time steps
       DEBUG(std::cout << "  ParticleDynamics - number of sub-steps for the current time increment: " << Nsub_steps << std::endl;)
       for (int i=0; i < Nsub_steps; i++) {
 	time_step(t0 + (i+1)*dt_sub);
       }
+
+      // time-average the forces applied to the Structure from the applied impulse over the current time increment
+      members.average_forces_from_impulse(time_increment);
 
       // store the new analysis time
       time = time_in;
@@ -128,6 +134,9 @@ private:
 
     // update the positions and velocities of the Particles
     debris.integrate_equations_of_motion(dt);
+
+    // update the impulse applied to the Structure
+    members.integrate_impulse(dt);
     
   } // time_step()
 

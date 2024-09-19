@@ -100,6 +100,12 @@ struct Structure {
     fx2.resize(num_members);
     fy2.resize(num_members);
     fz2.resize(num_members);
+    jx1.resize(num_members);
+    jy1.resize(num_members);
+    jz1.resize(num_members);
+    jx2.resize(num_members);
+    jy2.resize(num_members);
+    jz2.resize(num_members);
 
     // create inverse mapping from element tags to member indices
     tag_to_index.initialize(element_tag);
@@ -163,6 +169,23 @@ struct Structure {
     } // for i=1,...,num_members
     
   } // zero_forces()
+  
+  // ---------------------------------------------------------------------- //
+
+  // Zero impulse acting on all members
+  void zero_impulse(void) {
+
+    // Loop over all members and zero the applied impulse
+    for (int i=0; i<num_members; i++) {
+      jx1[i] = 0.0; // x-impulse at node 1
+      jy1[i] = 0.0; // y-impulse at node 1
+      jz1[i] = 0.0; // z-impulse at node 1
+      jx2[i] = 0.0; // x-impulse at node 2
+      jy2[i] = 0.0; // y-impulse at node 2
+      jz2[i] = 0.0; // z-impulse at node 2
+    } // for i=1,...,num_members
+    
+  } // zero_impulse()
   
   // ---------------------------------------------------------------------- //
   
@@ -363,6 +386,56 @@ struct Structure {
     //z2[i] = coordinates[5];
     
   } // apply_contact_force()
+  
+  // ---------------------------------------------------------------------- //
+
+  // Update the impulse applied to all members by integrating the
+  // applied forces over a finite time step of size dt
+  void integrate_impulse(double dt) {
+
+    // loop over all members
+    for (int i=0; i < num_members; i++) {
+      
+      // update the current member's impulse
+      jx1[i] += fx1[i]*dt; // x-impulse at node 1
+      jy1[i] += fy1[i]*dt; // y-impulse at node 1
+      jz1[i] += fz1[i]*dt; // z-impulse at node 1
+      jx2[i] += fx2[i]*dt; // x-impulse at node 2
+      jy2[i] += fy2[i]*dt; // y-impulse at node 2
+      jz2[i] += fz2[i]*dt; // z-impulse at node 2
+      
+    } // for(i=0...num_particles)
+    
+  } // integrate_impulse()
+  
+  // ---------------------------------------------------------------------- //
+
+  // Update the force applied to all members by time-averaging the
+  // applied impulse over the preceeding time_increment
+  void average_forces_from_impulse(double time_increment) {
+
+    // avoid division by zero, and keep forces if the time increment is zero
+    double inv_time_increment;
+    if (time_increment > 0.0) {
+      inv_time_increment = 1.0/time_increment;
+    } else {
+      inv_time_increment = 1.0;
+    }
+
+    // loop over all members
+    for (int i=0; i < num_members; i++) {
+      
+      // time-average the current member's force
+      fx1[i] = jx1[i]*inv_time_increment; // time-averaged x-force at node 1
+      fy1[i] = jy1[i]*inv_time_increment; // time-averaged y-force at node 1
+      fz1[i] = jz1[i]*inv_time_increment; // time-averaged z-force at node 1
+      fx2[i] = jx2[i]*inv_time_increment; // time-averaged x-force at node 2
+      fy2[i] = jy2[i]*inv_time_increment; // time-averaged y-force at node 2
+      fz2[i] = jz2[i]*inv_time_increment; // time-averaged z-force at node 2
+      
+    } // for(i=0...num_particles)
+    
+  } // average_forces_from_impulse()
     
   // --------------------- Declare public data members -------------------- //
 
@@ -379,6 +452,8 @@ struct Structure {
   std::vector<double>  x2,  y2,  z2; // The coordinates of the second joint for all members
   std::vector<double> fx1, fy1, fz1; // The forces applied to the first  joint for all members
   std::vector<double> fx2, fy2, fz2; // The forces applied to the second joint for all members
+  std::vector<double> jx1, jy1, jz1; // The incremental impulse applied to the first  joint for all members
+  std::vector<double> jx2, jy2, jz2; // The incremental impulse applied to the second joint for all members
   
   // ---------------------------------------------------------------------- //
   

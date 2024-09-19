@@ -164,7 +164,12 @@ for i in range(0,n_members):
 # RECORDER -------------------------------------------------------------
 
 # output position-velocity-displacement (PVD) data
-recorder('PVD', 'LineLoadTest_PVD', 'disp', 'reaction' ,'unbalancedLoad')
+output_directory = 'LineLoadTest_PVD'
+recorder('PVD', output_directory, 'disp', 'reaction' ,'unbalancedLoad')
+
+# create a matching directory in which to dump the output data
+if not os.path.exists(output_directory):
+    os.makedirs(output_directory)
 
 # DYNAMIC analysis -------------------------------------------------------------
 
