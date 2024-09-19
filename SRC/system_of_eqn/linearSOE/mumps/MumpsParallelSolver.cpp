@@ -94,7 +94,8 @@ MumpsParallelSolver::initializeMumps()
     //    id.comm_fortran=-987654;
     id.comm_fortran = 0;
 #else
-    id.comm_fortran = MPI_COMM_WORLD;
+    id.comm_fortran = static_cast<int>(MPI_Comm_c2f(MPI_COMM_WORLD));
+;
 #endif
     
     id.ICNTL(5) = 0; id.ICNTL(18) = 3;

@@ -1,6 +1,7 @@
 # Module for OpenSees
 # NOTE: THE LOCALLY MODIFIED VERSION OF OPENSEES WITH THE LINELOAD ELEMENT MUST BE USED
 from openseespy.opensees import *
+import vfo.vfo as vfo
 
 # Module for ParticleDynamics
 import ParticleDynamics
@@ -18,6 +19,30 @@ import time as timer
 from datetime import timedelta
 import numpy as np
 from argparse import ArgumentParser
+
+#Units
+# =============================================================================
+# Units and constants
+# =============================================================================
+#import os
+#os.system('cls')
+inch = 1
+m = 39.3701*inch
+kip = 1
+N = 0.0002248089*kip
+KN = N*1000 
+sec = 1
+ksi = 1
+
+# Dependent units
+sq_in = inch*inch
+ksi = kip/sq_in
+ft = 12*inch
+
+# Constants
+g = 386.2*inch/(sec*sec)
+pi = math.acos(-1)
+mm = 0.0393701*inch
 
 # ---------------------------------------------------------------------------- #
 
@@ -127,7 +152,7 @@ ParticleDynamics.API.define_wind_field(b"BakerSterlingVortex",wind_field_params)
 # SET UP ----------------------------------------------------------------------------
 
 wipe()				               # clear opensees model
-model('basic', '-ndm', 3, '-ndf', 3)	       # 3 dimensions, 3 dof per node
+model('basic', '-ndm', 3, '-ndf', 6)	       # 3 dimensions, 3 dof per node
 # file mkdir data 			       # create data directory
 
 # define GEOMETRY -------------------------------------------------------------
@@ -138,7 +163,7 @@ for i in range(0,n_joints):
 
 # Single point constraints -- Boundary Conditions
 for isupport in supports:
-    fix(isupport+1, 1, 1, 1) # node DX DY DZ
+    fix(isupport+1, 1, 1, 1, 1, 1, 1) # node DX DY DZ
 
 # define MATERIAL -------------------------------------------------------------
 
@@ -147,16 +172,93 @@ for i in range(0,n_joints):
     mass(i+1, lumped_mass[i], lumped_mass[i], lumped_mass[i]) # [kg] node#, Mx My Mz, Mass=Weight/g.
 
 # define materials
-uniaxialMaterial("Elastic", 1, 200.0e+9) # [kg*m/s^2] modulus of elasticity of steel (200 GPa)
+# =============================================================================
+# Rough Elements assign
+# =============================================================================
+Es = 29000 * ksi  # Steel Young's Modulus
+nu = 0.3  # Poisson's ratio
+Gs = Es / (2 * (1 + nu))  # Torsional stiffness Modulus
+J = 10  # Large torsional stiffness
+
+Transf = 1
+geomTransf('Linear', Transf, 0, 0, 1)
+
+
+
+#uniaxialMaterial("Elastic", 1, 200.0e+9) # [kg*m/s^2] modulus of elasticity of steel (200 GPa)
 
 # Define ELEMENTS -------------------------------------------------------------
 
 # NOTE: The structure should be represented in terms of nonlinear beam-column elements, rather than simple truss elements
 
 # define truss element connectivity
-for i in range(0,n_members):
-    element("Truss", i+1, int(connect_in[i][0]), int(connect_in[i][1]), cross_sectional_area, 1) # [m^2] (Truss, TrussID, node1, node2, area, material)
+# =============================================================================
+# Defining Fiber Section
+# =============================================================================
+Fy = 60.0 * ksi
+Es = 29000 * ksi  # Steel Young's Modulus
+nu = 0.3
+Bs = 0.01
+R0 = 18
+cR1 = 0.925
+cR2 = 0.15
+matIDhard = 2
+matType = 'Steel02'
+# Function to define uniaxial material in Python
+uniaxialMaterial(matType, matIDhard, Fy, Es, Bs, R0, cR1, cR2)
 
+#Properties of L-Section
+#Main Lega L150*150*14
+#Unit Wt = 310*N/m^3
+#Area = 4004 mm^2
+# Radius of Gyration = 46.308*mm
+# Ix = Iy = 845.4*cm^4
+ # Wx=Wy = 78.33*cm^3
+secTag = 2
+BreID = 2
+Lfiber = 20
+Sfiber = 3
+Thick = 14*mm
+Length = 150*mm
+Ly1= -Thick/2
+Hy1= -Thick/2
+Ly2= Length-Thick/2
+Hy2= Thick/2    
+
+def FiberCreation(secTag,matIDhard,Sfiber,Lfiber,Ly1,Hy1,Ly2,Hy2):
+    section('Fiber',secTag,'-GJ', 1.0e10)
+    patch('rect', matIDhard, Sfiber, Lfiber,Hy1,Ly1,Hy2,Ly2)
+    patch('rect', matIDhard, Lfiber, Sfiber,-Ly1,Hy1,Ly2,Hy2)
+
+
+    # SecTagTorsion = 4
+    # uniaxialMaterial('Elastic', SecTagTorsion, 1.0e12 )
+
+    # fib_sec_1 = [['section', 'Fiber', secTag, '-torsion', SecTagTorsion],
+    #         ['patch', 'rect', matIDhard, Sfiber, Lfiber,Hy1,Ly1,Hy2,Ly2],
+    #         ['patch', 'rect', matIDhard, Lfiber, Sfiber,-Ly1,Hy1,Ly2,Hy2],
+    #         ]
+    # opsv.fib_sec_list_to_cmds(fib_sec_1)   
+    # matcolor = ['r', 'lightgrey', 'gold', 'w', 'w', 'w']
+    # opsv.plot_fiber_section(fib_sec_1 , matcolor=matcolor)
+    # plt.axis('equal')
+    # plt.show()  
+# Function to create nodes and elements in OpenSeesPy
+
+
+        
+FiberCreation(secTag,matIDhard,Sfiber,Lfiber,Ly1,Hy1,Ly2,Hy2)
+QLsection = 310*N/pow(m,3)
+QDLsection = QLsection*(Length*Thick+(Length-Thick)*Thick)
+#print(len(connectivity))
+
+Radius = 0.5 # This is supposed radius for the member to calculate wind and debris forces  
+#Mass_Den = 
+   
+for i in range(0,n_members):
+    #print(f"Index {i+1}: {connectivity[i]}")  
+    element('elasticBeamColumn', i+1,  int(connect_in[i][0]), int(connect_in[i][1]), secTag, Transf)
+        
 # define LineLoad elements
 for i in range(0,n_members):
     element("LineLoad", i+1+n_members, int(connect_in[i][0]), int(connect_in[i][1]), eff_radius, ParticleDynamics.library_name) # [m] (LineLoad, LineLoadID, node1, node2, radius, library)
@@ -164,6 +266,7 @@ for i in range(0,n_members):
 # RECORDER -------------------------------------------------------------
 
 # output position-velocity-displacement (PVD) data
+vfo.plot_model(show_nodes='yes', show_nodetags='no', show_eletags='no', font_size=15, setview='3D', elementgroups=None, line_width=3)  
 recorder('PVD', 'LineLoadTest_PVD', 'disp', 'reaction' ,'unbalancedLoad')
 
 # DYNAMIC analysis -------------------------------------------------------------

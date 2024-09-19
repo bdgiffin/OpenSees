@@ -51,6 +51,8 @@
 #include <libseq\mpi.h>
 #endif
 
+
+
 MumpsSolver::MumpsSolver(int ICNTL7, int ICNTL14)
   :LinearSOESolver(SOLVER_TAGS_MumpsSolver),
    theMumpsSOE(0)
@@ -68,7 +70,7 @@ MumpsSolver::MumpsSolver(int ICNTL7, int ICNTL14)
   //  id.comm_fortran=-987654;
   id.comm_fortran=0;
 #else
-  id.comm_fortran=MPI_COMM_WORLD;
+  id.comm_fortran=static_cast<int>(MPI_Comm_c2f(MPI_COMM_WORLD));;
 #endif
 
   id.ICNTL(14) = ICNTL14;
