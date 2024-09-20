@@ -90,23 +90,21 @@ class LineLoad : public Element
   protected:
     
   private:
-
-  enum {LL_NUM_NODE = 2}; // number of nodes per element
-  enum {LL_NUM_NDF = 3}; // d.o.f. per node
-  enum {LL_NUM_DOF = 6}; // degrees of freedom per element
-  enum {LL_NUM_DDOF = 6}; // displacement degrees of freedom per element
   
     // method to load the dynamic library line load routine
     int dynamicLibraryLoad();
 
     ID  myExternalNodes;      // contains the tags of the end nodes
-    static Matrix tangentStiffness;  // Tangent Stiffness matrix
-    static Vector internalForces;    // vector of Internal Forces
-    static Vector theVector;         // vector to return the residual
+    static Matrix tangentStiffness6x6;   // 6x6 Tangent Stiffness matrix
+    static Vector internalForces6;       // 6 vector of Internal Forces
+    static Matrix tangentStiffness12x12; // 12x12 Tangent Stiffness matrix
+    static Vector internalForces12;      // 12 vector of Internal Forces
 
     double my_radius;       // the effective radius of the structural element
 
-    Node *theNodes[LL_NUM_NODE];
+    int dof_per_node; // d.o.f. per node
+
+    Node *theNodes[2];
 
     Vector dcrd1;             // current coordinates of node 1
     Vector dcrd2;             // current coordinates of node 2
