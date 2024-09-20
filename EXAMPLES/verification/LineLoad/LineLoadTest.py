@@ -76,22 +76,30 @@ for i in range(0,n_joints):
         supports.append(i)
 
 # define the cross-sectional area, effective member radius, and mass density assigned to all members
-steel_mass_density = 7850.0 # [kg/m^3] (mass density of steel)
-cross_sectional_area = 0.00065 # (cross-sectional area 1in^2 = 0.00065m^2)
-eff_radius = 0.05 # (effective radius 2in = 0.05m)
+modulus_of_elasticity = 200.0e+9 # [kg*m/s^2] modulus of elasticity of steel (200 GPa)
+poissons_ratio        = 0.3      # dimensionless
+steel_mass_density    = 7850.0   # [kg/m^3] (mass density of steel)
+cross_sectional_area  = 0.00065  # (cross-sectional area 1in^2 = 0.00065m^2)
+radius_of_gyration    = 0.05     # (effective radius 2in = 0.05m)
+
+shear_modulus        = 0.5*modulus_of_elasticity/(1.0+poissons_ratio)
+mass_per_unit_length = steel_mass_density*cross_sectional_area
+polar_moment_of_area = cross_sectional_area*radius_of_gyration*radius_of_gyration
+moment_of_area_x     = 0.5*polar_moment_of_area
+moment_of_area_y     = 0.5*polar_moment_of_area
         
 # lump the nodal masses to the joints of the structure
-lumped_mass = np.zeros(n_joints)
-for i in range(0,n_members):
-    i1 = connect_in[i][0]-1
-    i2 = connect_in[i][1]-1
-    dx = x_in[i2] - x_in[i1]
-    dy = y_in[i2] - y_in[i1]
-    dz = z_in[i2] - z_in[i1]
-    member_length = math.sqrt(dx*dx + dy*dy + dz*dz)
-    member_mass   = steel_mass_density*cross_sectional_area*member_length
-    lumped_mass[i1] = lumped_mass[i1] + 0.5*member_mass
-    lumped_mass[i2] = lumped_mass[i2] + 0.5*member_mass
+#lumped_mass = np.zeros(n_joints)
+#for i in range(0,n_members):
+#    i1 = connect_in[i][0]-1
+#    i2 = connect_in[i][1]-1
+#    dx = x_in[i2] - x_in[i1]
+#    dy = y_in[i2] - y_in[i1]
+#    dz = z_in[i2] - z_in[i1]
+#    member_length = math.sqrt(dx*dx + dy*dy + dz*dz)
+#    member_mass   = steel_mass_density*cross_sectional_area*member_length
+#    lumped_mass[i1] = lumped_mass[i1] + 0.5*member_mass
+#    lumped_mass[i2] = lumped_mass[i2] + 0.5*member_mass
 
 # ---------------------------------------------------------------------------- #
 
@@ -152,7 +160,11 @@ ParticleDynamics.API.define_wind_field(b"BakerSterlingVortex",wind_field_params)
 # SET UP ----------------------------------------------------------------------------
 
 wipe()				               # clear opensees model
+<<<<<<< HEAD
 model('basic', '-ndm', 3, '-ndf', 6)	       # 3 dimensions, 3 dof per node
+=======
+model('basic', '-ndm', 3, '-ndf', 6)	       # 3 dimensions, 6 dof per node (3 displacements + 3 rotations)
+>>>>>>> master
 # file mkdir data 			       # create data directory
 
 # define GEOMETRY -------------------------------------------------------------
@@ -163,15 +175,20 @@ for i in range(0,n_joints):
 
 # Single point constraints -- Boundary Conditions
 for isupport in supports:
+<<<<<<< HEAD
     fix(isupport+1, 1, 1, 1, 1, 1, 1) # node DX DY DZ
+=======
+    fix(isupport+1, 1, 1, 1, 0, 0, 0) # node DX DY DZ RX RY RZ
+>>>>>>> master
 
 # define MATERIAL -------------------------------------------------------------
 
-# nodal masses:
-for i in range(0,n_joints):
-    mass(i+1, lumped_mass[i], lumped_mass[i], lumped_mass[i]) # [kg] node#, Mx My Mz, Mass=Weight/g.
+# nodal masses: (only needed if masses are not already computed by the element)
+#for i in range(0,n_joints):
+#    mass(i+1, lumped_mass[i], lumped_mass[i], lumped_mass[i]) # [kg] node#, Mx My Mz, Mass=Weight/g.
 
 # define materials
+<<<<<<< HEAD
 # =============================================================================
 # Rough Elements assign
 # =============================================================================
@@ -186,12 +203,27 @@ geomTransf('Linear', Transf, 0, 0, 1)
 
 
 #uniaxialMaterial("Elastic", 1, 200.0e+9) # [kg*m/s^2] modulus of elasticity of steel (200 GPa)
+=======
+#matTag = 1
+#uniaxialMaterial("Elastic", matTag, modulus_of_elasticity) # [kg*m/s^2] modulus of elasticity of steel (200 GPa)
+
+# Define SECTION -------------------------------------------------------------
+
+# define section
+secTag = 1
+section('Elastic', secTag, modulus_of_elasticity, cross_sectional_area, moment_of_area_x, moment_of_area_y, shear_modulus, polar_moment_of_area)
+
+# define geometric transformation (linear, for now, but will eventually need to make this non-linear to capture buckling instabilities)
+transfTag = 1
+geomTransf('Linear', transfTag, 1.0, 1.0, 1.0)
+>>>>>>> master
 
 # Define ELEMENTS -------------------------------------------------------------
 
 # NOTE: The structure should be represented in terms of nonlinear beam-column elements, rather than simple truss elements
 
 # define truss element connectivity
+<<<<<<< HEAD
 # =============================================================================
 # Defining Fiber Section
 # =============================================================================
@@ -206,6 +238,11 @@ matIDhard = 2
 matType = 'Steel02'
 # Function to define uniaxial material in Python
 uniaxialMaterial(matType, matIDhard, Fy, Es, Bs, R0, cR1, cR2)
+=======
+for i in range(0,n_members):
+    element('elasticBeamColumn', i+1, int(connect_in[i][0]), int(connect_in[i][1]), secTag, transfTag, '-mass', mass_per_unit_length, '-cMass')
+    #element("Truss", i+1, int(connect_in[i][0]), int(connect_in[i][1]), cross_sectional_area, matTag) # [m^2] (Truss, TrussID, node1, node2, area, material)
+>>>>>>> master
 
 #Properties of L-Section
 #Main Lega L150*150*14
@@ -261,13 +298,22 @@ for i in range(0,n_members):
         
 # define LineLoad elements
 for i in range(0,n_members):
-    element("LineLoad", i+1+n_members, int(connect_in[i][0]), int(connect_in[i][1]), eff_radius, ParticleDynamics.library_name) # [m] (LineLoad, LineLoadID, node1, node2, radius, library)
+    element("LineLoad", i+1+n_members, int(connect_in[i][0]), int(connect_in[i][1]), radius_of_gyration, ParticleDynamics.library_name) # [m] (LineLoad, LineLoadID, node1, node2, radius, library)
 
 # RECORDER -------------------------------------------------------------
 
 # output position-velocity-displacement (PVD) data
+<<<<<<< HEAD
 vfo.plot_model(show_nodes='yes', show_nodetags='no', show_eletags='no', font_size=15, setview='3D', elementgroups=None, line_width=3)  
 recorder('PVD', 'LineLoadTest_PVD', 'disp', 'reaction' ,'unbalancedLoad')
+=======
+output_directory = 'LineLoadTest_PVD'
+recorder('PVD', output_directory, 'disp', 'reaction' ,'unbalancedLoad')
+
+# create a matching directory in which to dump the output data
+if not os.path.exists(output_directory):
+    os.makedirs(output_directory)
+>>>>>>> master
 
 # DYNAMIC analysis -------------------------------------------------------------
 

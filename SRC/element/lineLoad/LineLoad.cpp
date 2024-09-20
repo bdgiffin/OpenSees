@@ -44,9 +44,10 @@
 #include <stdio.h>
 #include <dlfcn.h>
 
-Matrix LineLoad::tangentStiffness(LL_NUM_DOF, LL_NUM_DOF);
-Vector LineLoad::internalForces(LL_NUM_DOF);
-Vector LineLoad::theVector(LL_NUM_DOF);
+Matrix LineLoad::tangentStiffness6x6(6,6);
+Vector LineLoad::internalForces6(6);
+Matrix LineLoad::tangentStiffness12x12(12,12);
+Vector LineLoad::internalForces12(12);
 
 static int num_LineLoad = 0;
 static std::string globalLoadLibName = "";
@@ -103,9 +104,9 @@ OPS_LineLoad(void)
 // constructors:
 LineLoad::LineLoad(int tag, int Nd1, int Nd2, double radius, const char* lib)
  :Element(tag,ELE_TAG_LineLoad),     
-   myExternalNodes(LL_NUM_NODE),
-   dcrd1(LL_NUM_NDF),
-   dcrd2(LL_NUM_NDF),
+   myExternalNodes(2),
+   dcrd1(3),
+   dcrd2(3),
    libName(lib)
 {
     myExternalNodes(0) = Nd1;
@@ -122,9 +123,9 @@ LineLoad::LineLoad(int tag, int Nd1, int Nd2, double radius, const char* lib)
 
 LineLoad::LineLoad()
   :Element(0,ELE_TAG_LineLoad),     
-   	myExternalNodes(LL_NUM_NODE),
-   	dcrd1(LL_NUM_NDF),
-        dcrd2(LL_NUM_NDF),
+   	myExternalNodes(2),
+        dcrd1(3),
+        dcrd2(3),
         libName()
 {
 }
@@ -137,7 +138,7 @@ LineLoad::~LineLoad()
 int
 LineLoad::getNumExternalNodes(void) const
 {
-    return LL_NUM_NODE;
+    return 2;
 }
 
 const ID &
@@ -155,7 +156,7 @@ LineLoad::getNodePtrs(void)
 int
 LineLoad::getNumDOF(void) 
 {
-    return LL_NUM_DOF;
+    return 2*dof_per_node;
 }
 
 void
@@ -164,7 +165,7 @@ LineLoad::setDomain(Domain *theDomain)
     theNodes[0] = theDomain->getNode(myExternalNodes(0));
     theNodes[1] = theDomain->getNode(myExternalNodes(1));
 
-    for (int i = 0; i < LL_NUM_NODE; i++) {
+    for (int i = 0; i < 2; i++) {
     	if (theNodes[i] == 0)
         	return;  // don't go any further - otherwise segmentation fault
     }
@@ -172,8 +173,19 @@ LineLoad::setDomain(Domain *theDomain)
     dcrd1 = theNodes[0]->getCrds();
     dcrd2 = theNodes[1]->getCrds();
 
+    int dofsNd1 = theNodes[0]->getNumberDOF();
+    int dofsNd2 = theNodes[1]->getNumberDOF();
+    if        ((dofsNd1 == 3) && (dofsNd2 == 3)) { // this is a truss element
+      dof_per_node = 3; // d.o.f. per node
+    } else if ((dofsNd1 == 6) && (dofsNd2 == 6)) { // this is a frame element
+      dof_per_node = 6; // d.o.f. per node
+    } else { // this element is not allowed
+      dof_per_node = 3; // d.o.f. per node
+      opserr << "LineLoad::setDomain () - invalid number of degrees of freedom for this element";
+    }
+
     // call the external library function to define the new element within the library module
-    double coordinates[LL_NUM_NODE*LL_NUM_NDF] = { dcrd1(0), dcrd1(1), dcrd1(2), dcrd2(0), dcrd2(1), dcrd2(2) };
+    double coordinates[6] = { dcrd1(0), dcrd1(1), dcrd1(2), dcrd2(0), dcrd2(1), dcrd2(2) };
     defineLineLoadSegmentFunctPtr(this->getTag(), my_radius, &coordinates[0]);
 
     // call the base class method
@@ -260,8 +272,13 @@ LineLoad::dynamicLibraryLoad()
 const Matrix &
 LineLoad::getTangentStiff(void)
 {
-    tangentStiffness.Zero();
-    return tangentStiffness;
+  if (dof_per_node == 6) {
+    tangentStiffness12x12.Zero();
+    return tangentStiffness12x12;
+  } else { // (dof_per_node == 3)
+    tangentStiffness6x6.Zero();
+    return tangentStiffness6x6;
+  }
 }
 
 const Matrix &
@@ -302,30 +319,38 @@ LineLoad::addInertiaLoadToUnbalance(const Vector &accel)
 const Vector &
 LineLoad::getResistingForce()
 {
-	internalForces.Zero();
 
 	// get current time
 	Domain *theDomain = this->getDomain();
 	double t = theDomain->getCurrentTime();
 
 	// initialize the arrays of nodal forces and coordinates
-	double forces[LL_NUM_NODE*LL_NUM_NDF] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-	double coordinates[LL_NUM_NODE*LL_NUM_NDF] = { dcrd1(0), dcrd1(1), dcrd1(2), dcrd2(0), dcrd2(1), dcrd2(2) };
+	double forces[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+	double coordinates[6] = { dcrd1(0), dcrd1(1), dcrd1(2), dcrd2(0), dcrd2(1), dcrd2(2) };
 	
 	// call the external library function to determine the resulting nodal forces applied to the element
 	applyLineLoadFunctPtr(t, this->getTag(), &coordinates[0], &forces[0]);
 	
 	// compute internal forces by scaling the nodal forces by the associated load factor
-	
-	// loop over nodes
-	for(int j = 0; j < LL_NUM_NODE; j++) {
-	  // loop over dof
-	  for(int k = 0; k < LL_NUM_NDF; k++) {
-	    internalForces[j*LL_NUM_NDF+k] = internalForces[j*LL_NUM_NDF+k] - mLoadFactor*forces[j*LL_NUM_NDF+k];
+	auto sum_forces = [&](Vector& internalForces) {
+	  internalForces.Zero();
+	  // loop over nodes
+	  for(int j = 0; j < 2; j++) {
+	    // loop over dof
+	    for(int k = 0; k < dof_per_node; k++) {
+	      internalForces[j*dof_per_node+k] = internalForces[j*dof_per_node+k] - mLoadFactor*forces[j*3+k];
+	    }
 	  }
-	}
+	};
+	
+        if (dof_per_node == 6) {
+	  sum_forces(internalForces12);
+	  return internalForces12;
+        } else { // (dof_per_node == 3)
+	  sum_forces(internalForces6);
+ 	  return internalForces6;
+        }
 
-	return internalForces;
 }
 
 const Vector &
@@ -347,14 +372,14 @@ LineLoad::sendSelf(int commitTag, Channel &theChannel)
   // LineLoad packs its data into a Vector and sends this to theChannel
   // along with its dbTag and the commitTag passed in the arguments
 
-  static Vector data(3 + 2*LL_NUM_NDF);
+  static Vector data(3 + 2*3);
   data(0) = this->getTag();
   data(1) = my_radius;
   data(2) = mLoadFactor;
 
-  for (int i = 0; i < LL_NUM_NDF; i++) {
-    data(3+0*LL_NUM_NDF+i) = dcrd1(i);
-    data(3+1*LL_NUM_NDF+i) = dcrd2(i);       
+  for (int i = 0; i < 3; i++) {
+    data(3+0*3+i) = dcrd1(i);
+    data(3+1*3+i) = dcrd2(i);
   }
   
   res = theChannel.sendVector(dataTag, commitTag, data);
@@ -381,7 +406,7 @@ LineLoad::recvSelf(int commitTag, Channel &theChannel, FEM_ObjectBroker &theBrok
 
   // LineLoad creates a Vector, receives the Vector and then sets the 
   // internal data with the data in the Vector
-  static Vector data(3 + 2*LL_NUM_NDF );
+  static Vector data(3 + 2*3);
   res = theChannel.recvVector(dataTag, commitTag, data);
   if (res < 0) {
     opserr <<"WARNING LineLoad::recvSelf() - failed to receive Vector\n";
@@ -392,9 +417,9 @@ LineLoad::recvSelf(int commitTag, Channel &theChannel, FEM_ObjectBroker &theBrok
   my_radius   = data(1);
   mLoadFactor = data(2);
 
-  for (int i = 0; i < LL_NUM_NDF; i++) {
-    dcrd1(i)  = data(3+0*LL_NUM_NDF+i);
-    dcrd2(i)  = data(3+1*LL_NUM_NDF+i);
+  for (int i = 0; i < 3; i++) {
+    dcrd1(i)  = data(3+0*3+i);
+    dcrd2(i)  = data(3+1*3+i);
   }
 
   // LineLoad now receives the tags of its four external nodes
@@ -418,7 +443,7 @@ LineLoad::Print(OPS_Stream &s, int flag)
 {
     opserr << "LineLoad, element id:  " << this->getTag() << "\n";
     opserr << "   Connected external nodes:  " ; 
-    for (int i = 0; i<LL_NUM_NODE; i++) {
+    for (int i = 0; i<2; i++) {
     	opserr << myExternalNodes(i)<< " ";
     }
     opserr << "\n";
