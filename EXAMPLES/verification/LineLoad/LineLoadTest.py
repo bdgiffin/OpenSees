@@ -1,4 +1,7 @@
+# =============================================================================
 # Module for OpenSees
+# =============================================================================
+
 # NOTE: THE LOCALLY MODIFIED VERSION OF OPENSEES WITH THE LINELOAD ELEMENT MUST BE USED
 from openseespy.opensees import *
 import vfo.vfo as vfo
@@ -20,60 +23,143 @@ from datetime import timedelta
 import numpy as np
 from argparse import ArgumentParser
 
-#Units
 # =============================================================================
 # Units and constants
 # =============================================================================
-#import os
-#os.system('cls')
-inch = 1
-m = 39.3701*inch
-kip = 1
-N = 0.0002248089*kip
-KN = N*1000 
-sec = 1
-ksi = 1
+
+#os.system('SI')
+
+# Independent units
+m = 1  # meters
+kg = 1  # kilograms
+N = 1  # Newton
+KN = 1000 * N  # kilonewtons
+sec = 1  # seconds
+  
 
 # Dependent units
-sq_in = inch*inch
-ksi = kip/sq_in
-ft = 12*inch
+inch = 0.0254*m  # meters
+kip = 4448.22*N  # Newtons (1 kip = 4448.22 N)
+kips2in = 175.126836*kg/m  # kg/m (since 1 kip/in = 175.126836 kg/m)
+sq_in = inch * inch  # square meters (1 in^2 = 0.00064516 m^2)
+ksi = kip / sq_in  # Pascals (force per unit area) Pascals (since 1 ksi = 6.89476 MPa = 6.89476 * 10^6 Pa)
+ft = inch/12  # meters (since 1 ft = 0.3048 meters)
+mm = 0.001 * m  # meters (since 1 mm = 0.001 meters)
 
 # Constants
-g = 386.2*inch/(sec*sec)
-pi = math.acos(-1)
-mm = 0.0393701*inch
+g = 9.81 * m / (sec * sec)  # acceleration due to gravity in m/s^2
+pi = math.acos(-1)  # value of pi
 
-# ---------------------------------------------------------------------------- #
 
-# read any input arguments the user may have provided
+# =============================================================================
+# Command-Line for providing exo file
+# =============================================================================
+
+# # read any input arguments the user may have provided
+# parser = ArgumentParser()
+# parser.add_argument("-f", "--file", dest="filename",
+#                     help="input Exodus model file for the frame structure", metavar="FILE")
+# parser.add_argument("-q", "--quiet",
+#                     action="store_false", dest="verbose", default=True,
+#                     help="don't print status messages to stdout")
+# args = parser.parse_args()
+
+# # ---------------------------------------------------------------------------- #
+
+# # check to make sure that the user has specified an Exodus file to define the geometry of the structure
+# if args.filename is None:
+#     print("ERROR: a valid Exodus model file must be specified to define the frame structure's geometry.")
+#     quit()
+
+# # read data from the Exodus model file for the frame structure
+# exoin = pyexodus.exodus(file=args.filename, mode='r', array_type='numpy', title=None, numDims=None, numNodes=None, numElems=None, numBlocks=None, numNodeSets=None, numSideSets=None, io_size=0, compression=None)
+# x_in,y_in,z_in = exoin.get_coords() # [m] (assumed units/dimensions of structure expressed in meters)
+# n_joints = len(x_in)
+# connect_in,n_members,n_nodes_per_member = exoin.get_elem_connectivity(id=1)
+# exoin.close()
+
+# # do some model pre-processing: identify the joints with supports
+# supports = []
+# for i in range(0,n_joints):
+#     if (abs(z_in[i]) < 1.0e-6):
+#         supports.append(i)
+
+# #print(connect_in[:5])
+
+
+# =============================================================================
+# Command-Line for reading CSV file for layer use
+# =============================================================================
+#read any input arguments the user may have provided
 parser = ArgumentParser()
 parser.add_argument("-f", "--file", dest="filename",
-                    help="input Exodus model file for the frame structure", metavar="FILE")
+                    help="input csv file with points and connectivity frame structure", metavar="FILE")
 parser.add_argument("-q", "--quiet",
                     action="store_false", dest="verbose", default=True,
                     help="don't print status messages to stdout")
 args = parser.parse_args()
-
-# ---------------------------------------------------------------------------- #
-
 # check to make sure that the user has specified an Exodus file to define the geometry of the structure
 if args.filename is None:
-    print("ERROR: a valid Exodus model file must be specified to define the frame structure's geometry.")
+    print("ERROR: a valid CSV file must be specified to define the frame structure's geometry.")
     quit()
 
-# read data from the Exodus model file for the frame structure
-exoin = pyexodus.exodus(file=args.filename, mode='r', array_type='numpy', title=None, numDims=None, numNodes=None, numElems=None, numBlocks=None, numNodeSets=None, numSideSets=None, io_size=0, compression=None)
-x_in,y_in,z_in = exoin.get_coords() # [m] (assumed units/dimensions of structure expressed in meters)
-n_joints = len(x_in)
-connect_in,n_members,n_nodes_per_member = exoin.get_elem_connectivity(id=1)
-exoin.close()
+def read_points_and_connectivity_from_txt(filename):
+    points = []
+    connectivity = []
+    layer = []  # Will store connectivity for each layer as a list of lists
+    current_layer = None  # Track the current layer
+    try:
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+            reading_points = False
+            reading_connectivity = False
 
-# do some model pre-processing: identify the joints with supports
+            for line in lines:
+                line = line.strip()
+                if line == "Points:":
+                    reading_points = True
+                    reading_connectivity = False
+                elif line == "Connectivity:":
+                    reading_points = False
+                    reading_connectivity = True
+                elif reading_points:
+                    coords = line.split(',')
+                    if len(coords) == 3:
+                        x, y, z = map(float, coords)
+                        points.append((x, y, z))
+                elif reading_connectivity:
+                    if line.startswith("Layer name:"):
+                        layer_name = line.split(":")[1].strip()
+                        layer.append([])
+                        current_layer = len(layer) - 1  # Index of the current layer
+                    else:
+                        element_nodes = list(map(int, line.split()))
+                        element_nodes = [node_id for node_id in element_nodes]  #Change this for TT because it sarts with 1 
+                        connectivity.append(element_nodes)
+                        # Append element nodes to the current layer in connectivity2
+                        layer[current_layer].append(element_nodes)
+    except Exception as e:
+        print(f"Error reading from {filename}: {e}")
+    return points, connectivity, layer
+
+txt_filename = args.filename  #For Transmission tower change line 172 element_nodes = [node_id for node_id in element_nodes]]
+points, connect_in, layer_in = read_points_and_connectivity_from_txt(txt_filename)
+n_members = len(connect_in)
+n_nodes_per_member = 2
+x_in =[row[0] for row in points]
+y_in = [row[1] for row in points]
+z_in = [row[2] for row in points]
+n_joints = len(x_in)
+
 supports = []
 for i in range(0,n_joints):
     if (abs(z_in[i]) < 1.0e-6):
         supports.append(i)
+
+
+# =============================================================================
+# Command-Line for Defining properties
+# =============================================================================
 
 # define the cross-sectional area, effective member radius, and mass density assigned to all members
 modulus_of_elasticity = 200.0e+9 # [kg*m/s^2] modulus of elasticity of steel (200 GPa)
@@ -88,18 +174,18 @@ polar_moment_of_area = cross_sectional_area*radius_of_gyration*radius_of_gyratio
 moment_of_area_x     = 0.5*polar_moment_of_area
 moment_of_area_y     = 0.5*polar_moment_of_area
         
-# lump the nodal masses to the joints of the structure
-#lumped_mass = np.zeros(n_joints)
-#for i in range(0,n_members):
-#    i1 = connect_in[i][0]-1
-#    i2 = connect_in[i][1]-1
-#    dx = x_in[i2] - x_in[i1]
-#    dy = y_in[i2] - y_in[i1]
-#    dz = z_in[i2] - z_in[i1]
-#    member_length = math.sqrt(dx*dx + dy*dy + dz*dz)
-#    member_mass   = steel_mass_density*cross_sectional_area*member_length
-#    lumped_mass[i1] = lumped_mass[i1] + 0.5*member_mass
-#    lumped_mass[i2] = lumped_mass[i2] + 0.5*member_mass
+#lump the nodal masses to the joints of the structure
+lumped_mass = np.zeros(n_joints)
+for i in range(0,n_members):
+   i1 = connect_in[i][0]-1
+   i2 = connect_in[i][1]-1
+   dx = x_in[i2] - x_in[i1]
+   dy = y_in[i2] - y_in[i1]
+   dz = z_in[i2] - z_in[i1]
+   member_length = math.sqrt(dx*dx + dy*dy + dz*dz)
+   member_mass   = steel_mass_density*cross_sectional_area*member_length
+   lumped_mass[i1] = lumped_mass[i1] + 0.5*member_mass
+   lumped_mass[i2] = lumped_mass[i2] + 0.5*member_mass
 
 # ---------------------------------------------------------------------------- #
 
@@ -157,14 +243,12 @@ ParticleDynamics.API.define_wind_field(b"BakerSterlingVortex",wind_field_params)
 # all units are in Newtons, meters, seconds
 #
 
+# =============================================================================
 # SET UP ----------------------------------------------------------------------------
+# =============================================================================
 
 wipe()				               # clear opensees model
-<<<<<<< HEAD
 model('basic', '-ndm', 3, '-ndf', 6)	       # 3 dimensions, 3 dof per node
-=======
-model('basic', '-ndm', 3, '-ndf', 6)	       # 3 dimensions, 6 dof per node (3 displacements + 3 rotations)
->>>>>>> master
 # file mkdir data 			       # create data directory
 
 # define GEOMETRY -------------------------------------------------------------
@@ -175,20 +259,15 @@ for i in range(0,n_joints):
 
 # Single point constraints -- Boundary Conditions
 for isupport in supports:
-<<<<<<< HEAD
-    fix(isupport+1, 1, 1, 1, 1, 1, 1) # node DX DY DZ
-=======
     fix(isupport+1, 1, 1, 1, 0, 0, 0) # node DX DY DZ RX RY RZ
->>>>>>> master
 
 # define MATERIAL -------------------------------------------------------------
 
 # nodal masses: (only needed if masses are not already computed by the element)
-#for i in range(0,n_joints):
-#    mass(i+1, lumped_mass[i], lumped_mass[i], lumped_mass[i]) # [kg] node#, Mx My Mz, Mass=Weight/g.
+for i in range(0,n_joints):
+    mass(i+1, lumped_mass[i], lumped_mass[i], lumped_mass[i]) # [kg] node#, Mx My Mz, Mass=Weight/g.
 
 # define materials
-<<<<<<< HEAD
 # =============================================================================
 # Rough Elements assign
 # =============================================================================
@@ -197,36 +276,21 @@ nu = 0.3  # Poisson's ratio
 Gs = Es / (2 * (1 + nu))  # Torsional stiffness Modulus
 J = 10  # Large torsional stiffness
 
-Transf = 1
-geomTransf('Linear', Transf, 0, 0, 1)
-
-
-
+# =============================================================================
+#Transformation absed on the orientation
+# =============================================================================
+Transf = [1,2,3]
+geomTransf('Linear', Transf[0], 0, 0, 1)
+geomTransf('Linear', Transf[1], 0, 0, 1)
+geomTransf('Linear', Transf[2], 0, 0, 1)
 #uniaxialMaterial("Elastic", 1, 200.0e+9) # [kg*m/s^2] modulus of elasticity of steel (200 GPa)
-=======
-#matTag = 1
-#uniaxialMaterial("Elastic", matTag, modulus_of_elasticity) # [kg*m/s^2] modulus of elasticity of steel (200 GPa)
-
-# Define SECTION -------------------------------------------------------------
-
-# define section
-secTag = 1
-section('Elastic', secTag, modulus_of_elasticity, cross_sectional_area, moment_of_area_x, moment_of_area_y, shear_modulus, polar_moment_of_area)
-
-# define geometric transformation (linear, for now, but will eventually need to make this non-linear to capture buckling instabilities)
-transfTag = 1
-geomTransf('Linear', transfTag, 1.0, 1.0, 1.0)
->>>>>>> master
 
 # Define ELEMENTS -------------------------------------------------------------
 
-# NOTE: The structure should be represented in terms of nonlinear beam-column elements, rather than simple truss elements
-
-# define truss element connectivity
-<<<<<<< HEAD
 # =============================================================================
 # Defining Fiber Section
 # =============================================================================
+
 Fy = 60.0 * ksi
 Es = 29000 * ksi  # Steel Young's Modulus
 nu = 0.3
@@ -238,11 +302,6 @@ matIDhard = 2
 matType = 'Steel02'
 # Function to define uniaxial material in Python
 uniaxialMaterial(matType, matIDhard, Fy, Es, Bs, R0, cR1, cR2)
-=======
-for i in range(0,n_members):
-    element('elasticBeamColumn', i+1, int(connect_in[i][0]), int(connect_in[i][1]), secTag, transfTag, '-mass', mass_per_unit_length, '-cMass')
-    #element("Truss", i+1, int(connect_in[i][0]), int(connect_in[i][1]), cross_sectional_area, matTag) # [m^2] (Truss, TrussID, node1, node2, area, material)
->>>>>>> master
 
 #Properties of L-Section
 #Main Lega L150*150*14
@@ -281,9 +340,7 @@ def FiberCreation(secTag,matIDhard,Sfiber,Lfiber,Ly1,Hy1,Ly2,Hy2):
     # plt.axis('equal')
     # plt.show()  
 # Function to create nodes and elements in OpenSeesPy
-
-
-        
+     
 FiberCreation(secTag,matIDhard,Sfiber,Lfiber,Ly1,Hy1,Ly2,Hy2)
 QLsection = 310*N/pow(m,3)
 QDLsection = QLsection*(Length*Thick+(Length-Thick)*Thick)
@@ -291,31 +348,57 @@ QDLsection = QLsection*(Length*Thick+(Length-Thick)*Thick)
 
 Radius = 0.5 # This is supposed radius for the member to calculate wind and debris forces  
 #Mass_Den = 
+k = 0
+for i in range(len(layer_in)):
+        for j in range(len(layer_in[i])):
+         #print(f"Index {i+1}: {connectivity[i]}")  
+         element('elasticBeamColumn', k+1, layer_in[i][j][0], layer_in[i][j][1], secTag, Transf[i])
+         element("LineLoad", k+1+n_members, layer_in[i][j][0], layer_in[i][j][1], radius_of_gyration, ParticleDynamics.library_name) # [m] (LineLoad, LineLoadID, node1, node2, radius, library)
+         k+=1
+
    
-for i in range(0,n_members):
-    #print(f"Index {i+1}: {connectivity[i]}")  
-    element('elasticBeamColumn', i+1,  int(connect_in[i][0]), int(connect_in[i][1]), secTag, Transf)
+# for i in range(0,n_members):
+#     #print(f"Index {i+1}: {connectivity[i]}")  
+#     element('elasticBeamColumn', i+1,  int(connect_in[i][0]), int(connect_in[i][1]), secTag, Transf)
         
-# define LineLoad elements
-for i in range(0,n_members):
-    element("LineLoad", i+1+n_members, int(connect_in[i][0]), int(connect_in[i][1]), radius_of_gyration, ParticleDynamics.library_name) # [m] (LineLoad, LineLoadID, node1, node2, radius, library)
+# # define LineLoad elements
+# for i in range(0,n_members):
+#     element("LineLoad", i+1+n_members, int(connect_in[i][0]), int(connect_in[i][1]), radius_of_gyration, ParticleDynamics.library_name) # [m] (LineLoad, LineLoadID, node1, node2, radius, library)
 
+# =============================================================================
 # RECORDER -------------------------------------------------------------
+# =============================================================================
 
-# output position-velocity-displacement (PVD) data
-<<<<<<< HEAD
-vfo.plot_model(show_nodes='yes', show_nodetags='no', show_eletags='no', font_size=15, setview='3D', elementgroups=None, line_width=3)  
-recorder('PVD', 'LineLoadTest_PVD', 'disp', 'reaction' ,'unbalancedLoad')
-=======
+x = len(layer_in[0])
+y = len(layer_in[0]) + len(layer_in[1])
+z = len(layer_in[0]) + len(layer_in[1]) + len(layer_in[2])
+
+vfo.plot_model(
+    elementgroups=[
+        [list(range(1, x)), list(range(x, y)), list(range(y, z))],
+        ["red", "blue", "green"]
+    ],
+    show_nodes='yes',
+    show_nodetags='no',
+    show_eletags='no',
+    font_size=15,
+    setview='3D',
+    line_width=3
+)
+
+# vfo.plot_model(show_nodes='yes', show_nodetags='no', show_eletags='no', font_size=15, setview='3D', elementgroups=None, line_width=3)  
+
 output_directory = 'LineLoadTest_PVD'
+# output position-velocity-displacement (PVD) data
 recorder('PVD', output_directory, 'disp', 'reaction' ,'unbalancedLoad')
 
 # create a matching directory in which to dump the output data
 if not os.path.exists(output_directory):
     os.makedirs(output_directory)
->>>>>>> master
 
+# =============================================================================
 # DYNAMIC analysis -------------------------------------------------------------
+# =============================================================================
 
 # create TimeSeries
 timeSeries("Linear", 1)
