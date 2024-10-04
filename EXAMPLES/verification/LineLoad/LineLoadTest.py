@@ -4,7 +4,10 @@
 
 # NOTE: THE LOCALLY MODIFIED VERSION OF OPENSEES WITH THE LINELOAD ELEMENT MUST BE USED
 from openseespy.opensees import *
+import math
 import vfo.vfo as vfo
+import opsvis as opsv
+import matplotlib.pyplot as plt
 
 # Module for ParticleDynamics
 import ParticleDynamics
@@ -45,7 +48,8 @@ sq_in = inch * inch  # square meters (1 in^2 = 0.00064516 m^2)
 ksi = kip / sq_in  # Pascals (force per unit area) Pascals (since 1 ksi = 6.89476 MPa = 6.89476 * 10^6 Pa)
 ft = inch/12  # meters (since 1 ft = 0.3048 meters)
 mm = 0.001 * m  # meters (since 1 mm = 0.001 meters)
-
+Mpa = N/mm**2
+Gpa = Mpa * 10**3
 # Constants
 g = 9.81 * m / (sec * sec)  # acceleration due to gravity in m/s^2
 pi = math.acos(-1)  # value of pi
@@ -88,7 +92,7 @@ pi = math.acos(-1)  # value of pi
 
 
 # =============================================================================
-# Command-Line for reading CSV file for layer use
+# Command-Line for reading CSV file for layer use #if using exo file then comment this
 # =============================================================================
 #read any input arguments the user may have provided
 parser = ArgumentParser()
@@ -280,9 +284,9 @@ J = 10  # Large torsional stiffness
 #Transformation absed on the orientation
 # =============================================================================
 Transf = [1,2,3]
-geomTransf('Linear', Transf[0], 0, 0, 1)
-geomTransf('Linear', Transf[1], 0, 0, 1)
-geomTransf('Linear', Transf[2], 0, 0, 1)
+geomTransf('Corotational', Transf[0], 0, 0, 1)
+geomTransf('Corotational', Transf[1], 0, 1, 0)
+geomTransf('Corotational', Transf[2], 0, 0, 1)
 #uniaxialMaterial("Elastic", 1, 200.0e+9) # [kg*m/s^2] modulus of elasticity of steel (200 GPa)
 
 # Define ELEMENTS -------------------------------------------------------------
@@ -290,26 +294,29 @@ geomTransf('Linear', Transf[2], 0, 0, 1)
 # =============================================================================
 # Defining Fiber Section
 # =============================================================================
-
-Fy = 60.0 * ksi
-Es = 29000 * ksi  # Steel Young's Modulus
+Fy = 345 * Mpa
+Es = 200* Gpa  # Steel Young's Modulus
 nu = 0.3
 Bs = 0.01
-R0 = 18
+R0 = 20
 cR1 = 0.925
 cR2 = 0.15
+a1 = 0.39
+a2 = 1.0
+a3 = 0.029
+a4 = 1.0
 matIDhard = 2
 matType = 'Steel02'
 # Function to define uniaxial material in Python
 uniaxialMaterial(matType, matIDhard, Fy, Es, Bs, R0, cR1, cR2)
-
+print(matType, matIDhard, Fy, Es, Bs, R0, cR1, cR2)
 #Properties of L-Section
 #Main Lega L150*150*14
 #Unit Wt = 310*N/m^3
 #Area = 4004 mm^2
 # Radius of Gyration = 46.308*mm
 # Ix = Iy = 845.4*cm^4
- # Wx=Wy = 78.33*cm^3
+# Wx = Wy = 78.33*cm^3
 secTag = 2
 BreID = 2
 Lfiber = 20
@@ -322,26 +329,28 @@ Ly2= Length-Thick/2
 Hy2= Thick/2    
 
 def FiberCreation(secTag,matIDhard,Sfiber,Lfiber,Ly1,Hy1,Ly2,Hy2):
-    section('Fiber',secTag,'-GJ', 1.0e10)
-    patch('rect', matIDhard, Sfiber, Lfiber,Hy1,Ly1,Hy2,Ly2)
-    patch('rect', matIDhard, Lfiber, Sfiber,-Ly1,Hy1,Ly2,Hy2)
+    # print(secTag,matIDhard,Sfiber,Lfiber,Ly1,Hy1,Ly2,Hy2)
+    # section('Fiber',secTag,'-GJ', 1.0e10)
+    # patch('rect', matIDhard, Sfiber, Lfiber,Hy1,Ly1,Hy2,Ly2)
+    # patch('rect', matIDhard, Lfiber, Sfiber,-Ly1,Hy1,Ly2,Hy2)
 
 
-    # SecTagTorsion = 4
-    # uniaxialMaterial('Elastic', SecTagTorsion, 1.0e12 )
+    SecTagTorsion = 4
+    uniaxialMaterial('Elastic', SecTagTorsion, 1.0e12 )
 
-    # fib_sec_1 = [['section', 'Fiber', secTag, '-torsion', SecTagTorsion],
-    #         ['patch', 'rect', matIDhard, Sfiber, Lfiber,Hy1,Ly1,Hy2,Ly2],
-    #         ['patch', 'rect', matIDhard, Lfiber, Sfiber,-Ly1,Hy1,Ly2,Hy2],
-    #         ]
-    # opsv.fib_sec_list_to_cmds(fib_sec_1)   
-    # matcolor = ['r', 'lightgrey', 'gold', 'w', 'w', 'w']
-    # opsv.plot_fiber_section(fib_sec_1 , matcolor=matcolor)
-    # plt.axis('equal')
-    # plt.show()  
+    fib_sec_1 = [['section', 'Fiber', secTag, '-torsion', SecTagTorsion],
+            ['patch', 'rect', matIDhard, Sfiber, Lfiber,Hy1,Ly1,Hy2,Ly2],
+            ['patch', 'rect', matIDhard, Lfiber, Sfiber,-Ly1,Hy1,Ly2,Hy2],
+            ]
+    opsv.fib_sec_list_to_cmds(fib_sec_1)   
+    matcolor = ['r', 'lightgrey', 'gold', 'w', 'w', 'w']
+    opsv.plot_fiber_section(fib_sec_1 , matcolor=matcolor)
+    plt.axis('equal')
+    plt.show()  
 # Function to create nodes and elements in OpenSeesPy
      
 FiberCreation(secTag,matIDhard,Sfiber,Lfiber,Ly1,Hy1,Ly2,Hy2)
+
 QLsection = 310*N/pow(m,3)
 QDLsection = QLsection*(Length*Thick+(Length-Thick)*Thick)
 #print(len(connectivity))
@@ -368,7 +377,6 @@ for i in range(len(layer_in)):
 # =============================================================================
 # RECORDER -------------------------------------------------------------
 # =============================================================================
-
 x = len(layer_in[0])
 y = len(layer_in[0]) + len(layer_in[1])
 z = len(layer_in[0]) + len(layer_in[1]) + len(layer_in[2])
@@ -379,7 +387,7 @@ vfo.plot_model(
         ["red", "blue", "green"]
     ],
     show_nodes='yes',
-    show_nodetags='no',
+    show_nodetags='yes',
     show_eletags='no',
     font_size=15,
     setview='3D',
@@ -400,11 +408,11 @@ if not os.path.exists(output_directory):
 # DYNAMIC analysis -------------------------------------------------------------
 # =============================================================================
 
-# create TimeSeries
-timeSeries("Linear", 1)
+# # create TimeSeries
+# timeSeries("Linear", 1)
 
-# create a plain load pattern
-pattern("Plain", 1, 1)
+# # create a plain load pattern
+# pattern("Plain", 1, 1)
 
 # set damping based on first eigen mode
 #freq = eigen('-fullGenLapack', 1)[0]**0.5
@@ -412,24 +420,62 @@ pattern("Plain", 1, 1)
 #rayleigh(0., 0., 0., 2*dampRatio/freq)
 
 # create the analysis
-#wipeAnalysis()			 # clear previously-define analysis parameters
-constraints('Plain')    	 # how it handles boundary conditions
-numberer("RCM")                  # renumber dof's to minimize band-width (optimization), if you want to
-system('BandGeneral')            # how to store and solve the system of equations in the analysis
-algorithm('Linear')	         # use Linear algorithm for linear analysis
-integrator('Newmark', 0.5, 0.25) # determine the next time step for an analysis
-analysis('Transient')            # define type of analysis: time-dependent
+#Old Analysis
+# Constrant_Type = "Plain"
+# numberer_Type = "RCM"
+# system_type = "BandGeneral"
+# algorith_type = "Linear" 
+# Integrator_type = "Newmark"
+# N_Gamma = 0.5
+# N_Beta = 0.25
+# analysis_type = "Transient"
 
-# RUN analysis -------------------------------------------------------------
 
-# perform the analysis
-time = 0.0 # [s] starting time
-dt   = 0.01 # [s] time increment
-ParticleDynamics.output_state(time)
-for step_id in range(1,100):
-    time = time + dt
-    analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
-    ParticleDynamics.output_state(time)
+#New analysis 
+Constrant_Type = "Transformation" 
+numberer_Type = "RCM"
+system_type = "BandGeneral"
+algorith_type = "ModifiedNewton"
+Integrator_type = "Newmark"
+N_Gamma = 0.5
+N_Beta = 0.25
+analysis_type = "Transient"
+N = n_joints
+Tol = N *1*math.exp(-8)
+maxNumIter = 10
+testTypeDynamic = "NormDispIncr"
 
-# finalize the ParticleDynamics module (close the Exodus files)
-ParticleDynamics.finalize()
+
+#Analysis
+# CONSTRAINTS handler(http://opensees.berkeley.edu/OpenSees/manuals/usermanual/617.htm)
+# DOF NUMBERER  (http://opensees.berkeley.edu/OpenSees/manuals/usermanual/366.htm)
+# SYSTEM (http://opensees.berkeley.edu/OpenSees/manuals/usermanual/371.htm)
+# Convergence TEST (http://opensees.berkeley.edu/OpenSees/manuals/usermanual/360.htm)
+# Solution ALGORITHM (http://opensees.berkeley.edu/OpenSees/manuals/usermanual/682.htm)
+# Static INTEGRATOR (http://opensees.berkeley.edu/OpenSees/manuals/usermanual/689.htm)
+#  or use Transient INTEGRATOR: 
+# ANALYSIS (http://opensees.berkeley.edu/OpenSees/manuals/usermanual/324.htm)
+
+# wipeAnalysis()			       # clear previously-define analysis parameters
+# constraints(Constrant_Type)    # how it handles boundary conditions
+# numberer(numberer_Type)        # renumber dof's to minimize band-width (optimization), if you want to
+# system(system_type)            # how to store and solve the system of equations in the analysis
+# # test(testTypeDynamic, Tol, maxNumIter, pFlag=0) #determine if convergence has been achieved at the end of an iteration step
+# algorithm(algorith_type)	   # use Linear algorithm for linear analysis
+# integrator(Integrator_type,N_Gamma,N_Beta)   # determine the next time step for an analysis
+# analysis(analysis_type)        # define type of analysis: time-dependent
+
+
+# #Define Damping
+
+# # perform the analysis
+# time = 0.0 # [s] starting time
+# dt   = 0.01 # [s] time increment
+# ParticleDynamics.output_state(time)
+# for step_id in range(1,100):
+#     time = time + dt
+#     analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
+#     ParticleDynamics.output_state(time)
+
+# # finalize the ParticleDynamics module (close the Exodus files)
+# ParticleDynamics.finalize()
