@@ -143,18 +143,38 @@ n_particles = 100
 particle_density         =  0.5*kg/pow(m,3) # [kg/m^3] (roughly the density of wood)
 particle_min_diameter    = 0.01*m # [m]
 particle_diameter_range  =  1.0*m # [m]
-particle_cylinder_radius = 50.0*m # [m]
+particle_cylinder_radius = 100.0*m # [m]
 particle_cylinder_height = 25.25*m # [m]
 particle_cylinder_center = [10.0*m,0.0*m,0.0*m] # [m,m,m]
 random_seed = 1
 ParticleDynamics.create_random_particles(n_particles,particle_density,particle_min_diameter,particle_diameter_range,particle_cylinder_radius,particle_cylinder_height,particle_cylinder_center,random_seed)
 
+
+#------------|--------------|------|-------------------
+# Parameters | Distribution | Mean | Standard Deviation
+#------------|--------------|------|-------------------
+# Vm         | Normal       | 40   | 10
+# Um         | Normal       | 20   | 2
+# Qm         | Normal       | 10   | 2
+# rm         | Normal       | 100  | 20
+# Y0         | Uniform      |      | 0 to 500
+#------------|--------------|------|-------------------
+#                  Debris     
+#------------|--------------|------|-------------------
+# Parameters | Distribution | Mean | Standard Deviation
+#------------|--------------|------|-------------------
+# Mass(kg)   | Normal       |0.2   |0.05
+# Area(m^2)  | Normal       |0.1   |0.02
+#------------|--------------|------|-------------------
+
+
 # Create the parameterized wind field model (Baker Sterling Vortex)
 wind_field_params = np.zeros(12)
 wind_field_params[0]  = 100*m/sec # [m/s]      Um: reference radial velocity
-wind_field_params[1]  = 1.0*m   # [m]        rm: reference radius
+Vm = 120*m/sec                                 #Vm : maximum Cirumfrential velocity 
+wind_field_params[1]  = 100.0*m   # [m]        rm: reference radius
 wind_field_params[2]  = 4.0*m  # [m]        zm: reference height
-wind_field_params[3]  = 2.0   #             S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
+wind_field_params[3]  =  Vm/wind_field_params[0]  #             S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
 wind_field_params[4]  = 2.0   #         gamma: 
 wind_field_params[5]  = 1.293*kg/pow(m,3) # [kg/m^3] rho0: reference density of air at STP
 wind_field_params[6]  = 10.0*m  # [m]       xc0: x-position of the vortex center
@@ -428,7 +448,7 @@ op.wipeAnalysis()	 # clear previously-define analysis parameters
 tCurrent = op.getTime()
 time = tCurrent # [s] starting time
 dt   = 0.01 # [s] time increment
-nPts = 200
+nPts = 1000
 tFinal = nPts*dt
 ok = 0
 
@@ -453,7 +473,7 @@ algorithm = {1:'KrylovNewton', 2: 'SecantNewton' , 3:'ModifiedNewton' , 4: 'Raph
 op.constraints(Constrant_Type)    # how it handles boundary conditions
 op.numberer(numberer_Type)        # renumber dof's to minimize band-width (optimization), if you want to
 op.system(system_type)            # how to store and solve the system of equations in the analysis
-op.test(test[1], Tol, 500)
+op.test(test[1], Tol, 500, 1)
 op.algorithm(algorithm[3])
 op.integrator(Integrator_type,0.5,0.25)
 op.analysis(analysis_type)
@@ -483,13 +503,13 @@ op.analysis(analysis_type)
 #                     print(test[i], algorithm[j], 'tCurrent=', tCurrent)
 
 
-# for step_id in range(nPts):
-#     time = time + dt
-#     print(time)
-#     op.analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
-#     ParticleDynamics.output_state(time)
+for step_id in range(nPts):
+    time = time + dt
+    print(time)
+    op.analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
+    ParticleDynamics.output_state(time)
  
-op.analyze(nPts,dt)   
+# op.analyze(nPts,dt)   
 # finalize the ParticleDynamics module (close the Exodus files)
 ParticleDynamics.finalize()
 
