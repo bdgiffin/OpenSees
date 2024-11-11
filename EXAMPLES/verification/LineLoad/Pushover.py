@@ -286,7 +286,7 @@ op.timeSeries("Linear", 1)
 op.pattern("Plain", 1, 1)
 for i in range(0,n_joints):
      op.mass(i+1, lumped_mass[i], lumped_mass[i], 0.0) # [kg] node#, Mx My Mz, Mass=Weight/g.
-     op.load(i+1, 0.0, 0.0, -lumped_mass[i]*g)
+     op.load(i+1, 0.0, 0.0, -lumped_mass[i]*g, 0.0 , 0.0, 0.0)
 # =============================================================================
 # Defining Fiber Section
 # =============================================================================
@@ -310,9 +310,15 @@ if not os.path.exists(dataDir):
     os.makedirs(dataDir)
     print(f"Directory '{dataDir}' created.")
     
-# array to store node ID and z_in value used for finding the topmost and botom nodes
-push = np.array([[i + 1, z_in[i]] for i in range(n_joints)])
+# array to store node ID and z_in value
+push = np.array([[i + 1, z_in[i], x_in[i], y_in[i]] for i in range(n_joints)])
 # Sort the array by (z_in values)
+condu = push[push[:, 3].argsort()]
+# for i in range(-3, 3):
+#     op.mass(75*kg, 75*kg, 75*kg)
+#     op.load(int(condu[i][0]), 0.0, 0.0, -75*kg*g, 0.0, 0.0 ,0.0)
+#     print(condu[i][0])
+
 push = push[push[:, 1].argsort()]
 Height = push[-1][1]-push[0][1]
 print("Height of the tower is ",Height)
@@ -348,12 +354,40 @@ react = os.path.join(dataDir, "RXN.out")
 op.recorder("Node", '-file', free_file, 'time', '-node', int(push[-1][0]),'-precision',3, '-time' ,'-dof', 1, 'disp')
 op.recorder("Node", '-file', fixed_file, 'time', '-node', int(push[0][0]),'-precision',3, '-time' ,'-dof', 1, 'disp')
 op.recorder("Node", '-file', react, 'time', '-node', int(push[0][0]), '-precision',3,'-time', '-dof', 1, 'reaction')
+
+# =============================================================================
+# Gravity Analysis
+# =============================================================================
+Constrant_Type = "Transformation" 
+numberer_Type = "RCM"
+system_type = "BandGeneral"
+algorith_type = "Newton"
+Integrator_type = "Newmark"
+N_Gamma = 0.5
+N_Beta = 0.25
+analysis_type = "Transient"
+Tol = 1.0e-12
+maxNumIter = 5
+testTypeDynamic = "NormDispIncr"
+
+op.system(system_type)            # how to store and solve the system of equations in the analysis
+op.constraints(Constrant_Type)    # how it handles boundary conditions
+op.numberer(numberer_Type)        # renumber dof's to minimize band-width (optimization), if you want to
+op.test(testTypeDynamic, Tol, 10,3) #determine if convergence has been achieved at the end of an iteration step
+op.algorithm(algorith_type)	   # use Linear algorithm for linear analysis
+op.integrator('LoadControl' ,0.1)
+op.analysis('Static')
+op.analyze(10)
+print('Nsteps')
+print("Gravity Analysis Complete")
 # =============================================================================
 # Applying Lateral load pattern  ----------------------------------------------
 # =============================================================================
 #file to store pushover data
+op.wipeAnalysis() #REmove previous alaysis 
+
 height_ranges = [2, 5, 15, 25, 36]
-load_push = [10,20,30,40,50]
+load_push = [100,200,300,400,500]
 
 unique_z_in = np.unique(push[:, 1])
 op.timeSeries('Linear',2)
@@ -377,7 +411,7 @@ for idx, z_val in enumerate(unique_z_in):
 
 IDctrlNode = int(push[-1][0]) ;# node where disp is read for disp control
 IDctrlDOF = 1;# degree of freedom read for disp control (1 = x displacement)
-Dmax = 0.8;	# maximum displacement of pushover:
+Dmax = 0.5;	# maximum displacement of pushover:
 Dincr = 0.01;# displacement increment
 
 # =============================================================================

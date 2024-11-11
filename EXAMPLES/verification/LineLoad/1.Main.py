@@ -139,19 +139,19 @@ for i in range(0,n_joints):
 # =============================================================================
 # Call C/C++ library API functions from Python:
 # Define randomized spherical particle parameters
-n_particles = 50
+n_particles = 100
 particle_density         =  0.5*kg/pow(m,3) # [kg/m^3] (roughly the density of wood)
 particle_min_diameter    = 0.01*m # [m]
 particle_diameter_range  =  1.0*m # [m]
 particle_cylinder_radius = 50.0*m # [m]
 particle_cylinder_height = 25.25*m # [m]
-particle_cylinder_center = [0.0*m,0.0*m,0.0*m] # [m,m,m]
+particle_cylinder_center = [10.0*m,0.0*m,0.0*m] # [m,m,m]
 random_seed = 1
 ParticleDynamics.create_random_particles(n_particles,particle_density,particle_min_diameter,particle_diameter_range,particle_cylinder_radius,particle_cylinder_height,particle_cylinder_center,random_seed)
 
 # Create the parameterized wind field model (Baker Sterling Vortex)
 wind_field_params = np.zeros(12)
-wind_field_params[0]  = 20*m/sec # [m/s]      Um: reference radial velocity
+wind_field_params[0]  = 100*m/sec # [m/s]      Um: reference radial velocity
 wind_field_params[1]  = 1.0*m   # [m]        rm: reference radius
 wind_field_params[2]  = 4.0*m  # [m]        zm: reference height
 wind_field_params[3]  = 2.0   #             S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
@@ -312,7 +312,7 @@ op.timeSeries("Linear", 1)
 op.pattern("Plain", 1, 1)
 for i in range(0,n_joints):
      op.mass(i+1, lumped_mass[i], lumped_mass[i], 0.0) # [kg] node#, Mx My Mz, Mass=Weight/g.
-     op.load(i+1, 0.0, 0.0, -lumped_mass[i]*g)
+     op.load(i+1, 0.0, 0.0, -lumped_mass[i]*g, 0.0, 0.0 ,0.0)
      
 # =============================================================================
 # Defining Fiber Section
@@ -362,11 +362,10 @@ if not os.path.exists(dataDir):
 push = np.array([[i + 1, z_in[i], x_in[i], y_in[i]] for i in range(n_joints)])
 # Sort the array by (z_in values)
 condu = push[push[:, 3].argsort()]
-for i in range(-3, 3):
-    op.mass(int(condu[i][0]), 75*kg, 75*kg, 75*kg)
-    print(condu[i][0])
-
-print("The first point where conductor need to be", condu[0][0])
+# for i in range(-3, 3):
+#     op.mass(75*kg, 75*kg, 75*kg)
+#     op.load(int(condu[i][0]), 0.0, 0.0, -75*kg*g, 0.0, 0.0 ,0.0)
+#     print(condu[i][0])
 
 push = push[push[:, 1].argsort()]
 Height = push[-1][1]-push[0][1]
@@ -375,26 +374,26 @@ print("Height of the tower is ",Height)
 # For 3-d Visualization 
 # =============================================================================
 
-x = [0] * (len(layer_in) + 1)
-x[0] = 1
-for i in range(len(layer_in)):
-    x[i+1] = x[i] + len(layer_in[i])
+# x = [0] * (len(layer_in) + 1)
+# x[0] = 1
+# for i in range(len(layer_in)):
+#     x[i+1] = x[i] + len(layer_in[i])
 
 
-element_ranges = [list(range(x[i], x[i+1])) for i in range(len(layer_in))]
-colors = ["red", "blue", "green", "yellow", "cyan", "magenta", "orange"]
+# element_ranges = [list(range(x[i], x[i+1])) for i in range(len(layer_in))]
+# colors = ["red", "blue", "green", "yellow", "cyan", "magenta", "orange"]
 
 
-vfo.plot_model(
-    elementgroups=[element_ranges, colors[:len(element_ranges)]],
-    show_nodes='yes',
-    show_nodetags='yes',
-    show_eletags='no',
-    font_size=15,
-    setview='3D',
-    line_width=3
-)
-exit()
+# vfo.plot_model(
+#     elementgroups=[element_ranges, colors[:len(element_ranges)]],
+#     show_nodes='yes',
+#     show_nodetags='yes',
+#     show_eletags='no',
+#     font_size=15,
+#     setview='3D',
+#     line_width=3
+# )
+# exit()
 
 # =============================================================================
 # Recorder for max displacement at the top and base reaction
@@ -427,8 +426,8 @@ if not os.path.exists(output_directory):
 op.wipeAnalysis()	 # clear previously-define analysis parameters
 tCurrent = op.getTime()
 time = tCurrent # [s] starting time
-dt   = 0.1 # [s] time increment
-nPts = 15
+dt   = 0.01 # [s] time increment
+nPts = 200
 tFinal = nPts*dt
 ok = 0
 
@@ -483,7 +482,7 @@ op.analysis(analysis_type)
 #                     print(test[i], algorithm[j], 'tCurrent=', tCurrent)
 
 
-# for step_id in range(10):
+# for step_id in range(nPts):
 #     time = time + dt
 #     print(time)
 #     op.analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
