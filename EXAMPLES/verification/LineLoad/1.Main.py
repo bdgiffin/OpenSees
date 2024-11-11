@@ -246,11 +246,8 @@ op.geomTransf(Trans_Type, Transf[4], 0, 0, 1)
 op.geomTransf(Trans_Type, Transf[5], 0, 0, 1)  #Cross Members
 op.geomTransf(Trans_Type, Transf[6], 0, 0, 1)  #Cross Members
 # =============================================================================
-# Rough Elements assign
+# Elements size assign
 # =============================================================================
-
-#Properties of L-Section
-#Main Lega L150*150*14 #Unit Wt = 310*N/m^3 #Area = 4004 mm^2 # Radius of Gyration = 46.308*mm # Ix = Iy = 845.4*cm^4 # Wx = Wy = 78.33*cm^3
 
 secTag = [1,2,3,4,5,6,7]
 BreID = 2
@@ -262,6 +259,10 @@ Ly1= -Thick/2
 Hy1= -Thick/2
 Ly2= Length-Thick/2
 Hy2= Thick/2    
+
+# =============================================================================
+# Ql Section
+# =============================================================================
 
 
 QLsection = 310*N/pow(m,3)

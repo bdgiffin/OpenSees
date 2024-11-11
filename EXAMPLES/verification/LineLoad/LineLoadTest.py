@@ -343,10 +343,10 @@ def FiberCreation(secTag,matIDhard,Sfiber,Lfiber,Ly1,Hy1,Ly2,Hy2):
             ['patch', 'rect', matIDhard, Lfiber, Sfiber,-Ly1,Hy1,Ly2,Hy2],
             ]
     opsv.fib_sec_list_to_cmds(fib_sec_1)   
-    matcolor = ['r', 'lightgrey', 'gold', 'w', 'w', 'w']
-    opsv.plot_fiber_section(fib_sec_1 , matcolor=matcolor)
-    plt.axis('equal')
-    plt.show()  
+    # matcolor = ['r', 'lightgrey', 'gold', 'w', 'w', 'w']
+    # opsv.plot_fiber_section(fib_sec_1 , matcolor=matcolor)
+    # plt.axis('equal')
+    # plt.show()  
 # Function to create nodes and elements in OpenSeesPy
      
 FiberCreation(secTag,matIDhard,Sfiber,Lfiber,Ly1,Hy1,Ly2,Hy2)
@@ -377,22 +377,22 @@ for i in range(len(layer_in)):
 # =============================================================================
 # RECORDER -------------------------------------------------------------
 # =============================================================================
-x = len(layer_in[0])
-y = len(layer_in[0]) + len(layer_in[1])
-z = len(layer_in[0]) + len(layer_in[1]) + len(layer_in[2])
+# x = len(layer_in[0])
+# y = len(layer_in[0]) + len(layer_in[1])
+# z = len(layer_in[0]) + len(layer_in[1]) + len(layer_in[2])
 
-vfo.plot_model(
-    elementgroups=[
-        [list(range(1, x)), list(range(x, y)), list(range(y, z))],
-        ["red", "blue", "green"]
-    ],
-    show_nodes='yes',
-    show_nodetags='yes',
-    show_eletags='no',
-    font_size=15,
-    setview='3D',
-    line_width=3
-)
+# vfo.plot_model(
+#     elementgroups=[
+#         [list(range(1, x)), list(range(x, y)), list(range(y, z))],
+#         ["red", "blue", "green"]
+#     ],
+#     show_nodes='yes',
+#     show_nodetags='yes',
+#     show_eletags='no',
+#     font_size=15,
+#     setview='3D',
+#     line_width=3
+# )
 
 # vfo.plot_model(show_nodes='yes', show_nodetags='no', show_eletags='no', font_size=15, setview='3D', elementgroups=None, line_width=3)  
 
@@ -432,18 +432,29 @@ if not os.path.exists(output_directory):
 
 
 #New analysis 
-Constrant_Type = "Transformation" 
+# Define Analysis Parameters
+Constraint_Type = "Transformation"  # Corrected spelling
 numberer_Type = "RCM"
 system_type = "BandGeneral"
-algorith_type = "ModifiedNewton"
+algorithm_type = "ModifiedNewton"  # Corrected spelling
 Integrator_type = "Newmark"
 N_Gamma = 0.5
 N_Beta = 0.25
 analysis_type = "Transient"
-N = n_joints
-Tol = N *1*math.exp(-8)
+N = n_joints  # Ensure 'n_joints' is defined elsewhere in your script
+Tol = math.exp(-8)  # Tolerance for convergence
 maxNumIter = 10
 testTypeDynamic = "NormDispIncr"
+
+# Set Up Analysis
+wipeAnalysis()  # Clear previously defined analysis parameters
+constraints(Constraint_Type)  # How to handle boundary conditions
+numberer(numberer_Type)  # Renumber DOFs to optimize bandwidth
+system(system_type)  # Define storage and solution of system equations
+test(testTypeDynamic, Tol, maxNumIter,0)  # Convergence test for each iteration
+algorithm(algorithm_type)  # Define algorithm type (e.g., ModifiedNewton)
+integrator(Integrator_type, N_Gamma, N_Beta)  # Define time integration method
+analysis(analysis_type)  # Define analysis type (time-dependent)
 
 
 #Analysis
@@ -456,26 +467,16 @@ testTypeDynamic = "NormDispIncr"
 #  or use Transient INTEGRATOR: 
 # ANALYSIS (http://opensees.berkeley.edu/OpenSees/manuals/usermanual/324.htm)
 
-# wipeAnalysis()			       # clear previously-define analysis parameters
-# constraints(Constrant_Type)    # how it handles boundary conditions
-# numberer(numberer_Type)        # renumber dof's to minimize band-width (optimization), if you want to
-# system(system_type)            # how to store and solve the system of equations in the analysis
-# # test(testTypeDynamic, Tol, maxNumIter, pFlag=0) #determine if convergence has been achieved at the end of an iteration step
-# algorithm(algorith_type)	   # use Linear algorithm for linear analysis
-# integrator(Integrator_type,N_Gamma,N_Beta)   # determine the next time step for an analysis
-# analysis(analysis_type)        # define type of analysis: time-dependent
+#Define Damping
 
+# perform the analysis
+time = 0.0 # [s] starting time
+dt   = 0.01 # [s] time increment
+ParticleDynamics.output_state(time)
+for step_id in range(1,100):
+    time = time + dt
+    analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
+    ParticleDynamics.output_state(time)
 
-# #Define Damping
-
-# # perform the analysis
-# time = 0.0 # [s] starting time
-# dt   = 0.01 # [s] time increment
-# ParticleDynamics.output_state(time)
-# for step_id in range(1,100):
-#     time = time + dt
-#     analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
-#     ParticleDynamics.output_state(time)
-
-# # finalize the ParticleDynamics module (close the Exodus files)
-# ParticleDynamics.finalize()
+# finalize the ParticleDynamics module (close the Exodus files)
+ParticleDynamics.finalize()
