@@ -81,11 +81,11 @@ moment_of_area_y     = 0.5*polar_moment_of_area
 # Call C/C++ library API functions from Python:
 
 # Define randomized spherical particle parameters
-n_particles = 100
+n_particles = 2000
 particle_density         =  0.5 # [kg/m^3] (roughly the density of wood)
 particle_min_diameter    = 0.01 # [m]
 particle_diameter_range  =  1.0 # [m]
-particle_cylinder_radius = 10.0 # [m]
+particle_cylinder_radius = 20.0 # [m]
 particle_cylinder_height = 40.0 # [m]
 particle_cylinder_center = [10.0,0.0,0.0] # [m,m,m]
 random_seed = 1
@@ -217,9 +217,9 @@ analysis('Transient')            # define type of analysis: time-dependent
 
 # perform the analysis
 time = 0.0 # [s] starting time
-dt   = 0.01 # [s] time increment
+dt   = 0.001 # [s] time increment
 ParticleDynamics.output_state(time)
-for step_id in range(1,100):
+for step_id in range(1,1000):
     time = time + dt
     analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
     ParticleDynamics.output_state(time)
