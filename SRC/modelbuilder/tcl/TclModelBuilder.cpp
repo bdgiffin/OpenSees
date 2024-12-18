@@ -75,6 +75,7 @@
 #include <Beam3dPartialUniformLoad.h>
 #include <BrickSelfWeight.h>
 #include <SurfaceLoader.h>
+#include <LineLoader.h>
 #include <SelfWeight.h>
 #include <LoadPattern.h>
 
@@ -2291,6 +2292,31 @@ TclCommand_addElementalLoad(ClientData clientData, Tcl_Interp *interp, int argc,
 	  count++;
   	  for (int i=0; i<theEleTags.Size(); i++) {
 		  theLoad = new SurfaceLoader(eleLoadTag, theEleTags(i));
+
+	      if (theLoad == 0) {
+	          opserr << "WARNING eleLoad - out of memory creating load of type " << argv[count] ;
+	          return TCL_ERROR;
+	      }
+
+	      // get the current pattern tag if no tag given in i/p
+	      int loadPatternTag = theTclLoadPattern->getTag();
+	
+	      // add the load to the domain
+	      if (theTclDomain->addElementalLoad(theLoad, loadPatternTag) == false) {
+	          opserr << "WARNING eleLoad - could not add following load to domain:\n ";
+	          opserr << theLoad;
+	          delete theLoad;
+	          return TCL_ERROR;
+	      }
+	  	  eleLoadTag++;
+      }
+      return 0;
+  }
+  // Added: B.Giffn & H.Poudel, Oklahoma State University
+  else if ((strcmp(argv[count],"-lineLoad") == 0) || (strcmp(argv[count],"-LineLoad") == 0)) {
+	  count++;
+  	  for (int i=0; i<theEleTags.Size(); i++) {
+		  theLoad = new LineLoader(eleLoadTag, theEleTags(i));
 
 	      if (theLoad == 0) {
 	          opserr << "WARNING eleLoad - out of memory creating load of type " << argv[count] ;
