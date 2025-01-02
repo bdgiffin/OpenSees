@@ -29,30 +29,30 @@ from Params import *
 # ============================================================================
 # Command-Line for providing exo file
 # =============================================================================
-parser = ArgumentParser()
+# parser = ArgumentParser()
 # parser.add_argument("-f", "--file", dest="filename",
 #                     help="input Exodus model file for the frame structure", metavar="FILE")
 # parser.add_argument("-q", "--quiet",
 #                     action="store_false", dest="verbose", default=True,
 #                     help="don't print status messages to stdout")
-args = parser.parse_args()
+# args = parser.parse_args()
 
 
 #Use when running QUO FEM 
-args.filename = "Drawing25.25_points_connectivity.csv"
+filename = "Drawing25.25_points_connectivity.csv"
 
 
 # # ---------------------------------------------------------------------------- #
 
 # check to make sure that the user has specified an Exodus file to define the geometry of the structure
-if args.filename.lower().endswith('.exo'):
+if filename.lower().endswith('.exo'):
     file_format = "exo"
-    if args.filename is None:
+    if filename is None:
         print("ERROR: a valid Exodus model file must be specified to define the frame structure's geometry.")
         quit()
 
     # read data from the Exodus model file for the frame structure
-    exoin = pyexodus.exodus(file=args.filename, mode='r', array_type='numpy', title=None, numDims=None, numNodes=None, numElems=None, numBlocks=None, numNodeSets=None, numSideSets=None, io_size=0, compression=None)
+    exoin = pyexodus.exodus(file=filename, mode='r', array_type='numpy', title=None, numDims=None, numNodes=None, numElems=None, numBlocks=None, numNodeSets=None, numSideSets=None, io_size=0, compression=None)
     x_in,y_in,z_in = exoin.get_coords() # [m] (assumed units/dimensions of structure expressed in meters)
     n_joints = len(x_in)
     connect_in,n_members,n_nodes_per_member = exoin.get_elem_connectivity(id=1)
@@ -72,7 +72,7 @@ if args.filename.lower().endswith('.exo'):
 # Command-Line for reading CSV file for layer use #if using exo file then comment this
 # =============================================================================
  # read any input arguments the user may have provided
-elif args.filename.lower().endswith('.csv'):
+elif filename.lower().endswith('.csv'):
     file_format = "csv"
     def read_points_and_connectivity_from_txt(filename):
         points = []
@@ -113,7 +113,7 @@ elif args.filename.lower().endswith('.csv'):
             print(f"Error reading from {filename}: {e}")
         return points, connectivity, layer
 
-    txt_filename = args.filename  #For Transmission tower change line 172 element_nodes = [node_id for node_id in element_nodes]]
+    txt_filename = filename  #For Transmission tower change line 172 element_nodes = [node_id for node_id in element_nodes]]
     points, connect_in, layer_in = read_points_and_connectivity_from_txt(txt_filename)
 
 
@@ -139,7 +139,7 @@ def run_analysis():
     # =============================================================================
     # Command-Line for Defining properties of fluid and particles
     # =============================================================================
-    n_particles = 0
+    n_particles = 500
     particle_density         =  0.5*kg/pow(m,3) # [kg/m^3] (roughly the density of wood)
     particle_min_diameter    = 0.01*m # [m]
     particle_diameter_range  =  1.0*m # [m]
@@ -171,19 +171,20 @@ def run_analysis():
     # Create the parameterized wind field model (Baker Sterling Vortex)
     wind_field_params = np.zeros(12)
     wind_field_params[0]  = Radial_wind_vel*m/sec # [m/s]      Um: reference radial velocity
-    #Vm : maximum Cirumfrential velocity 
+    Vm = Tangential_wind_vel
     wind_field_params[1]  = Ref_Radius*m   # [m]        rm: reference radius
     wind_field_params[2]  = Ref_Height*m  # [m]        zm: reference height
-    wind_field_params[3]  =  Swirl_ratio  #             S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
-    wind_field_params[4]  = 2.0   #         gamma: 
+    wind_field_params[3]  =  Vm/ wind_field_params[0] #    S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
+    wind_field_params[4]  = wind_field_params[0]/Vm   #         gamma: 
     wind_field_params[5]  = 1.293*kg/pow(m,3) # [kg/m^3] rho0: reference density of air at STP
-    wind_field_params[6]  = 0.0*m  # [m]       xc0: x-position of the vortex center
+    wind_field_params[6]  = 10.0*m  # [m]       xc0: x-position of the vortex center
     wind_field_params[7]  = 0.0*m   # [m]       yc0: y-position of the vortex center
     wind_field_params[8]  = 0.0 *m  # [m]       zc0: z-position of the vortex center
     wind_field_params[9]  = 0.0*m/sec   # [m/s]     vxc: x-velocity of the vortex center
     wind_field_params[10] = 0.0*m/sec   # [m/s]     vyc: y-velocity of the vortex center
     wind_field_params[11] = 0.0*m/sec   # [m/s]     vzc: z-velocity of the vortex center
     SWIRL.API.define_wind_field(b"BakerSterlingVortex",wind_field_params)
+    SWIRL.get_wind_field_data()
 
     # Create a Rankine vortex
     #wind_field_params = np.zeros(12)
@@ -365,7 +366,7 @@ def run_analysis():
     # array to store node ID and z_in value
     push = np.array([[i + 1, z_in[i], x_in[i], y_in[i]] for i in range(n_joints)])
     # Sort the array by (z_in values)
-    condu = push[push[:, 3].argsort()]
+    condu = push[push[:, 3].argsort()]  #For conductor Weight
     # for i in range(-3, 3):
     #     op.mass(75*kg, 75*kg, 75*kg)
     #     op.load(int(condu[i][0]), 0.0, 0.0, -75*kg*g, 0.0, 0.0 ,0.0)
@@ -436,7 +437,7 @@ def run_analysis():
     tCurrent = op.getTime()
     time = tCurrent # [s] starting time
     dt   = 0.01 # [s] time increment
-    nPts = 100
+    nPts = 10
     tFinal = nPts*dt
     ok = 0
 

@@ -35,15 +35,6 @@ parser.add_argument("-q", "--quiet",
                     help="don't print status messages to stdout")
 args = parser.parse_args()
 
-
-#Use when running QUO FEM 
-args.filename = "Drawing25.25_points_connectivity.csv"
-
-
-
-
-
-
 # # ---------------------------------------------------------------------------- #
 
 # check to make sure that the user has specified an Exodus file to define the geometry of the structure
@@ -136,7 +127,6 @@ for i in range(0,n_joints):
     if (abs(z_in[i]) < 1.0e-6):
         supports.append(i)
 
-wei = 10
 
 # =============================================================================
 # Command-Line for Defining properties of fluid and particles
@@ -174,10 +164,10 @@ SWIRL.create_random_particles(n_particles,particle_density,particle_min_diameter
 
 # Create the parameterized wind field model (Baker Sterling Vortex)
 wind_field_params = np.zeros(12)
-wind_field_params[0]  = wei*m/sec # [m/s]      Um: reference radial velocity
+wind_field_params[0]  = 40*m/sec # [m/s]      Um: reference radial velocity
 Vm = 10*m/sec                                 #Vm : maximum Cirumfrential velocity 
-wind_field_params[1]  = 50.0*m   # [m]        rm: reference radius
-wind_field_params[2]  = 20.0*m  # [m]        zm: reference height
+wind_field_params[1]  = 100.0*m   # [m]        rm: reference radius
+wind_field_params[2]  = 30.0*m  # [m]        zm: reference height
 wind_field_params[3]  =  2  #             S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
 wind_field_params[4]  = 2.0   #         gamma: 
 wind_field_params[5]  = 1.293*kg/pow(m,3) # [kg/m^3] rho0: reference density of air at STP
