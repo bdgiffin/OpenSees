@@ -24,7 +24,7 @@ from Modules.Fiber import *  #The fiber module is present in Module file
 # Append the location of the locally installed SWIRL package to sys.path
 sys.path.append("/root/Research/SWIRL/install/package/")
 import SWIRL
-from Params import *
+from Params1 import *
 
 # ============================================================================
 # Command-Line for providing exo file
@@ -175,7 +175,7 @@ def run_analysis():
     wind_field_params[1]  = Ref_Radius*m   # [m]        rm: reference radius
     wind_field_params[2]  = Ref_Height*m  # [m]        zm: reference height
     wind_field_params[3]  =  Vm/ wind_field_params[0] #    S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
-    wind_field_params[4]  = wind_field_params[0]/Vm   #         gamma: 
+    wind_field_params[4]  = 2.0   #         gamma: 
     wind_field_params[5]  = 1.293*kg/pow(m,3) # [kg/m^3] rho0: reference density of air at STP
     wind_field_params[6]  = 10.0*m  # [m]       xc0: x-position of the vortex center
     wind_field_params[7]  = 0.0*m   # [m]       yc0: y-position of the vortex center
@@ -441,7 +441,6 @@ def run_analysis():
     tFinal = nPts*dt
     ok = 0
 
-    SWIRL.output_state(time)
     op.timeSeries("Linear", 2)
     op.pattern("Plain", 2, 2)
 
@@ -491,11 +490,28 @@ def run_analysis():
     #                     time.append(tCurrent)
     #                     print(test[i], algorithm[j], 'tCurrent=', tCurrent)
 
+    xx = np.array([0.0, 0.0, 0.0, 0.0, *[3.35] * 4, *[1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4, *[3.35] * 4, *[1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4])
+    xy = np.array([0.0, 0.0, 0.0, 0.0, *[3.35] * 4, *[1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4, *[3.35] * 4, *[1.52/2] * 4])
+    xz = np.array([*[15.24, 18.44, 21.64, 25.25] * 9])
+    points1 = len(xx)
+    vx=np.zeros(points1,dtype='float64')
+    vy =np.zeros(points1,dtype='float64')
+    vz=np.zeros(points1,dtype='float64')
+    rho = np.zeros(points1,dtype='float64')
+    rho = rho+ wind_field_params[5]
+    SWIRL.API.update_state(time) # required for initialization
+    SWIRL.output_state(time)
+    SWIRL.API.get_wind_field_data(points1,xx,xy,xz,vx,vy,vz,rho)
+    radial_wind = np.sqrt(np.mean(vx)**2 + np.mean(vy)**2)
+    print("The intensity measure of the wind is",radial_wind)
+
+
 
     for step_id in range(nPts):
         time = time + dt
         print(time)
         op.analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
+        SWIRL.API.update_state(time)
         SWIRL.output_state(time)
     
     # op.analyze(nPts,dt)   
@@ -585,6 +601,7 @@ def run_analysis():
     return{
         "drift_x": max_abs_drift_x,
         "drift_y": max_abs_drift_y,
+        "wind_IM": radial_wind,
     }
 
 
