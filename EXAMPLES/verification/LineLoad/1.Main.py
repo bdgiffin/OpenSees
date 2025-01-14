@@ -133,13 +133,13 @@ for i in range(0,n_joints):
 # =============================================================================
 # Call C/C++ library API functions from Python:
 # Define randomized spherical particle parameters
-n_particles = 0
+n_particles = 1
 particle_density         =  0.5*kg/pow(m,3) # [kg/m^3] (roughly the density of wood)
 particle_min_diameter    = 0.01*m # [m]
 particle_diameter_range  =  1.0*m # [m]
 particle_cylinder_radius = 50.0*m # [m]
 particle_cylinder_height = 25.25*m # [m]
-particle_cylinder_center = [0.0*m,0.0*m,0.0*m] # [m,m,m]
+particle_cylinder_center = [20.0*m,20.0*m,0.0*m] # [m,m,m]
 random_seed = 1
 SWIRL.create_random_particles(n_particles,particle_density,particle_min_diameter,particle_diameter_range,particle_cylinder_radius,particle_cylinder_height,particle_cylinder_center,random_seed)
 
@@ -164,16 +164,16 @@ SWIRL.create_random_particles(n_particles,particle_density,particle_min_diameter
 
 # Create the parameterized wind field model (Baker Sterling Vortex)
 wind_field_params = np.zeros(12)
-wind_field_params[0]  = 40*m/sec # [m/s]      Um: reference radial velocity
+wind_field_params[0]  = 60*m/sec # [m/s]      Um: reference radial velocity
 Vm = 10*m/sec                                 #Vm : maximum Cirumfrential velocity 
 wind_field_params[1]  = 100.0*m   # [m]        rm: reference radius
 wind_field_params[2]  = 30.0*m  # [m]        zm: reference height
 wind_field_params[3]  =  2  #             S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
 wind_field_params[4]  = 2.0   #         gamma: 
 wind_field_params[5]  = 1.293*kg/pow(m,3) # [kg/m^3] rho0: reference density of air at STP
-wind_field_params[6]  = 0.0*m  # [m]       xc0: x-position of the vortex center
-wind_field_params[7]  = 0.0*m   # [m]       yc0: y-position of the vortex center
-wind_field_params[8]  = 0.0 *m  # [m]       zc0: z-position of the vortex center
+wind_field_params[6]  = particle_cylinder_center[0]  # [m]       xc0: x-position of the vortex center
+wind_field_params[7]  = particle_cylinder_center[1]  # [m]       yc0: y-position of the vortex center
+wind_field_params[8]  = particle_cylinder_center[2] # [m]       zc0: z-position of the vortex center
 wind_field_params[9]  = 0.0*m/sec   # [m/s]     vxc: x-velocity of the vortex center
 wind_field_params[10] = 0.0*m/sec   # [m/s]     vyc: y-velocity of the vortex center
 wind_field_params[11] = 0.0*m/sec   # [m/s]     vzc: z-velocity of the vortex center
@@ -194,7 +194,6 @@ SWIRL.API.define_wind_field(b"BakerSterlingVortex",wind_field_params)
 #wind_field_params[10] = 0.0   # [m/s]     vyc: y-velocity of the vortex center
 #wind_field_params[11] = 0.0   # [m/s]     vzc: z-velocity of the vortex center
 #ParticleDynamics.API.define_wind_field(b"RankineVortex",wind_field_params)
-
 
 # =============================================================================
 # Start of OpenSees model generation ------------------------------------------
@@ -371,26 +370,44 @@ print("Height of the tower is ",Height)
 # For 3-d Visualization
 # =============================================================================
 
-x = [0] * (len(layer_in) + 1)
-x[0] = 1
-for i in range(len(layer_in)):
-    x[i+1] = x[i] + len(layer_in[i])
+# x = [0] * (len(layer_in) + 1)
+# x[0] = 1
+# for i in range(len(layer_in)):
+#     x[i+1] = x[i] + len(layer_in[i])
 
 
-element_ranges = [list(range(x[i], x[i+1])) for i in range(len(layer_in))]
-colors = ["red", "blue", "green", "yellow", "cyan", "magenta", "orange"]
+# element_ranges = [list(range(x[i], x[i+1])) for i in range(len(layer_in))]
+# colors = ["red", "blue", "green", "yellow", "cyan", "magenta", "orange"]
 
 
-vfo.plot_model(
-    elementgroups=[element_ranges, colors[:len(element_ranges)]],
-    show_nodes='yes',
-    show_nodetags='yes',
-    show_eletags='no',
-    font_size=15,
-    setview='3D',
-    line_width=3
-)
-exit()
+# vfo.plot_model(
+#     elementgroups=[element_ranges, colors[:len(element_ranges)]],
+#     show_nodes='yes',
+#     show_nodetags='yes',
+#     show_eletags='no',
+#     font_size=15,
+#     setview='3D',
+#     line_width=3
+# )
+# exit()
+
+# =============================================================================
+# # # Static analysis (To initilize wind load) -------------------------------
+# =============================================================================
+Static_step = 10
+D_Gravity = 1/Static_step
+
+op.constraints('Plain')    
+op.numberer('RCM')       
+op.system('BandGeneral')      
+op.test('NormDispIncr', 1.0e-6, 6)
+op.algorithm('Newton')
+op.integrator('LoadControl',D_Gravity)
+op.analysis('Static')
+op.analyze(Static_step)
+op.loadConst('-time', 0.0)
+print("Static Analysis Complete it initilizes wind load ")
+
 
 # =============================================================================
 # Recorder for max displacement at the top and base reaction
@@ -399,7 +416,7 @@ free_file = os.path.join(dataDir, "DFree.out")
 fixed_file = os.path.join(dataDir, "DFixed.out")
 react = os.path.join(dataDir, "RXN.out")
 
-ISDR = [77,131]#[11,12]#,31,32,33,43,44,67,72,70,75,77,131]
+ISDR = [11,12,31,32,33,43,44,67,72,70,75,77,131]
 for i in range(len(ISDR)):
     file_name = f"node_{ISDR[i]}_drift.out"  # Or customize the file name as needed
     file_path = os.path.join(dataDir, file_name)
@@ -429,7 +446,7 @@ if not os.path.exists(output_directory):
 op.wipeAnalysis()	 # clear previously-define analysis parameters
 tCurrent = op.getTime()
 time = tCurrent # [s] starting time
-dt   = 0.01 # [s] time increment
+dt   = 0.1 # [s] time increment
 nPts = 100
 tFinal = nPts*dt
 ok = 0
@@ -446,7 +463,7 @@ Integrator_type = "Newmark"
 N_Gamma = 0.5
 N_Beta = 0.25
 analysis_type = "Transient"
-Tol = math.exp(-3)
+Tol = math.exp(-5)
 maxNumIter = 10
 test = {1:'NormDispIncr', 2: 'RelativeEnergyIncr', 3:'EnergyIncr', 4: 'RelativeNormUnbalance',5: 'RelativeNormDispIncr', 6: 'NormUnbalance'}
 algorithm = {1:'KrylovNewton', 2: 'SecantNewton' , 3:'ModifiedNewton' , 4: 'RaphsonNewton',5: 'PeriodicNewton', 6: 'BFGS', 7: 'Broyden', 8: 'NewtonLineSearch'}
@@ -487,119 +504,117 @@ op.analysis(analysis_type)
 
 for step_id in range(nPts):
     time = time + dt
-    # print(time)
+    print(time)
     op.analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
+    SWIRL.API.update_state(time)
     SWIRL.output_state(time)
  
-# op.analyze(nPts,dt)   
 # finalize the ParticleDynamics module (close the Exodus files)
 SWIRL.finalize()
-
 
 # =============================================================================
 # # # Plotting Displacement at the top point ----------------------------------
 # =============================================================================
-# time_series1 = np.loadtxt(free_file)
-# Drift = (time_series1[:, 1]) # 3.0 is the height between node 1 and node 2
-# Time = (time_series1[:, 0])
-
-
+time_series1 = np.loadtxt(free_file)
+Drift = (time_series1[:, 1]) # 3.0 is the height between node 1 and node 2
+Time = (time_series1[:, 0])
+print(Drift)
+exit()
 # plt.figure(figsize=(8,8))
 # plt.plot(Time, Drift, color='blue', linewidth=2, label='TimeSeries')
 # plt.xlabel('Time (s)')
 # plt.ylabel("Displacement at the Top (m)", fontsize=14)
 # plt.title("Time-History", fontsize=16)
 # plt.show()
-
 # =============================================================================
 # # # Plotting ISDR ratio-----------------------------------------------------
 # =============================================================================
-output_file = os.path.join(dataDir, "drift_data_output.out")
-max_file =  os.path.join(dataDir, "drift_max.out")
-max_abs_drift_x = 0
-max_abs_drift_y = 0
-vx_values = []  # Placeholder for storing Vx values
+# output_file = os.path.join(dataDir, "drift_data_output.out")
+# max_file =  os.path.join(dataDir, "drift_max.out")
+# max_abs_drift_x = 0
+# max_abs_drift_y = 0
+# vx_values = []  # Placeholder for storing Vx values
 
-# Open the output file for writing drift data
-with open(output_file, 'w') as f_out:
-    # f_out.write("Time\tDrift_x\tDrift_y\n")  # Write headers
+# # Open the output file for writing drift data
+# with open(output_file, 'w') as f_out:
+#     # f_out.write("Time\tDrift_x\tDrift_y\n")  # Write headers
 
-    for i in range(len(ISDR) - 1):
-        # File for node i
-        file_name1 = f"node_{ISDR[i]}_drift.out" 
-        file_path1 = os.path.join(dataDir, file_name1)
-        coords1 = op.nodeCoord(ISDR[i])
-        z_value1 = coords1[2]  # Z-coordinate for node i
+#     for i in range(len(ISDR) - 1):
+#         # File for node i
+#         file_name1 = f"node_{ISDR[i]}_drift.out" 
+#         file_path1 = os.path.join(dataDir, file_name1)
+#         coords1 = op.nodeCoord(ISDR[i])
+#         z_value1 = coords1[2]  # Z-coordinate for node i
         
-        # File for node i+1
-        file_name2 = f"node_{ISDR[i+1]}_drift.out" 
-        file_path2 = os.path.join(dataDir, file_name2)
-        coords2 = op.nodeCoord(ISDR[i+1]) 
-        z_value2 = coords2[2]  # Z-coordinate for node i+1
+#         # File for node i+1
+#         file_name2 = f"node_{ISDR[i+1]}_drift.out" 
+#         file_path2 = os.path.join(dataDir, file_name2)
+#         coords2 = op.nodeCoord(ISDR[i+1]) 
+#         z_value2 = coords2[2]  # Z-coordinate for node i+1
         
-        # Load displacement data for both nodes
-        Disp1 = np.loadtxt(file_path1)
-        Disp2 = np.loadtxt(file_path2)
+#         # Load displacement data for both nodes
+#         Disp1 = np.loadtxt(file_path1)
+#         Disp2 = np.loadtxt(file_path2)
         
-        # Corrected drift calculation
-        Drift_x = (Disp1[:, 1] - Disp2[:, 1]) / (z_value1 - z_value2)  # X-direction drift
-        Drift_y = (Disp1[:, 2] - Disp2[:, 2]) / (z_value1 - z_value2)  # Y-direction drift
+#         # Corrected drift calculation
+#         Drift_x = (Disp1[:, 1] - Disp2[:, 1]) / (z_value1 - z_value2)  # X-direction drift
+#         Drift_y = (Disp1[:, 2] - Disp2[:, 2]) / (z_value1 - z_value2)  # Y-direction drift
         
-        max_abs_drift_x = max(max_abs_drift_x, np.max(np.abs(Drift_x)))
-        max_abs_drift_y = max(max_abs_drift_y, np.max(np.abs(Drift_y)))
+#         max_abs_drift_x = max(max_abs_drift_x, np.max(np.abs(Drift_x)))
+#         max_abs_drift_y = max(max_abs_drift_y, np.max(np.abs(Drift_y)))
         
         
-        # Write time, Drift_x, and Drift_y for all time steps to file
-        for j in range(len(Disp1)):
-            time = Disp1[j, 0]
-            drift_x = Drift_x[j]
-            drift_y = Drift_y[j]
-            f_out.write(f"{time}\t{drift_x}\t{drift_y}\n")
+#         # Write time, Drift_x, and Drift_y for all time steps to file
+#         for j in range(len(Disp1)):
+#             time = Disp1[j, 0]
+#             drift_x = Drift_x[j]
+#             drift_y = Drift_y[j]
+#             f_out.write(f"{time}\t{drift_x}\t{drift_y}\n")
         
 
-        print(f"Drift between node {ISDR[i]} and node {ISDR[i+1]} recorded.")
+#         print(f"Drift between node {ISDR[i]} and node {ISDR[i+1]} recorded.")
 
-print(f"Drift data has been saved to {output_file}")
+# print(f"Drift data has been saved to {output_file}")
 
-time_series1 = np.loadtxt(output_file)
-Driftx = (time_series1[:, 1]) # 3.0 is the height between node 1 and node 2
-Driftx = (time_series1[:, 2])
-Time = (time_series1[:, 0])
+# time_series1 = np.loadtxt(output_file)
+# Driftx = (time_series1[:, 1]) # 3.0 is the height between node 1 and node 2
+# Driftx = (time_series1[:, 2])
+# Time = (time_series1[:, 0])
 
 
-# plt.figure(figsize=(8,8))
-# plt.plot(Time, Driftx, color='blue', linewidth=2, label='TimeSeries')
-# plt.xlabel('Time (s)')
-# plt.ylabel("Inter-Segmental Drift Ratio", fontsize=14)
-# plt.title("ISDR time history", fontsize=16)
-# plt.show()
-with open(max_file, 'a') as summary_out:
-    summary_out.write(f"{wei}\t{max_abs_drift_x}\t{max_abs_drift_y} \n")
+# # plt.figure(figsize=(8,8))
+# # plt.plot(Time, Driftx, color='blue', linewidth=2, label='TimeSeries')
+# # plt.xlabel('Time (s)')
+# # plt.ylabel("Inter-Segmental Drift Ratio", fontsize=14)
+# # plt.title("ISDR time history", fontsize=16)
+# # plt.show()
+# with open(max_file, 'a') as summary_out:
+#     summary_out.write(f"{wind_field_params[0]}\t{max_abs_drift_x}\t{max_abs_drift_y} \n")
     
-print(wei)
-# import os
-# import numpy as np
-# import matplotlib.pyplot as plt
-# file = "Main_Dynamic/Result"
-# max_file = os.path.join(file, "near1000")
+# print(wind_field_params[0])
+# # import os
+# # import numpy as np
+# # import matplotlib.pyplot as plt
+# # file = "Main_Dynamic/Result"
+# # max_file = os.path.join(file, "near1000")
 
 
-data = np.loadtxt(max_file)
-Vm = data[:, 0]  # First column: Vm
-max_abs_drift_x = data[:, 1]  # Second column: max_abs_drift_x
-max_abs_drift_y = data[:, 2]  # Third column: max_abs_drift_y
+# data = np.loadtxt(max_file)
+# Vm = data[:, 0]  # First column: Vm
+# max_abs_drift_x = data[:, 1]  # Second column: max_abs_drift_x
+# max_abs_drift_y = data[:, 2]  # Third column: max_abs_drift_y
 
 
-plt.figure(figsize=(8, 6))
-plt.plot(Vm, max_abs_drift_x, label='Max Abs Drift X', marker='o', linestyle='-', color='blue')
-plt.plot(Vm, max_abs_drift_y, label='Max Abs Drift Y', marker='s', linestyle='--', color='green')
+# plt.figure(figsize=(8, 6))
+# plt.plot(Vm, max_abs_drift_x, label='Max Abs Drift X', marker='o', linestyle='-', color='blue')
+# plt.plot(Vm, max_abs_drift_y, label='Max Abs Drift Y', marker='s', linestyle='--', color='green')
 
-# Add labels, legend, and title
-plt.xlabel("Vm", fontsize=12)
-plt.ylabel("Max Absolute Drift", fontsize=12)
-plt.title("Vm vs Max Absolute Drift", fontsize=14)
-plt.legend()
-plt.grid(True)
+# # Add labels, legend, and title
+# plt.xlabel("Vm", fontsize=12)
+# plt.ylabel("Max Absolute Drift", fontsize=12)
+# plt.title("Vm vs Max Absolute Drift", fontsize=14)
+# plt.legend()
+# plt.grid(True)
 
-# Show the plot
-plt.show()
+# # Show the plot
+# plt.show()

@@ -2,6 +2,7 @@
 # Module for OpenSees
 # =============================================================================
 # NOTE: THE LOCALLY MODIFIED VERSION OF OPENSEES WITH THE LINELOAD ELEMENT MUST BE USED
+#python 1.Model_QuoFEM.py -f Drawing25.25_points_connectivity.csv
 import os
 import sys
 import math
@@ -139,17 +140,18 @@ def run_analysis():
     # =============================================================================
     # Command-Line for Defining properties of fluid and particles
     # =============================================================================
-    n_particles = 500
+    n_particles = 1000
     particle_density         =  0.5*kg/pow(m,3) # [kg/m^3] (roughly the density of wood)
     particle_min_diameter    = 0.01*m # [m]
     particle_diameter_range  =  1.0*m # [m]
     particle_cylinder_radius = 50.0*m # [m]
     particle_cylinder_height = 25.25*m # [m]
-    particle_cylinder_center = [0.0*m,0.0*m,0.0*m] # [m,m,m]
+    particle_cylinder_center = [50.0*m,0.0*m,0.0*m] # [m,m,m]
+    file_path = os.path.join('out_data.csv')
+    print(file_path)
     random_seed = 1
-    SWIRL.create_random_particles(n_particles,particle_density,particle_min_diameter,particle_diameter_range,particle_cylinder_radius,particle_cylinder_height,particle_cylinder_center,random_seed)
-
-
+    # SWIRL.create_random_particles(n_particles,particle_density,particle_min_diameter,particle_diameter_range,particle_cylinder_radius,particle_cylinder_height,particle_cylinder_center,random_seed)
+    SWIRL.create_file_particles(file_path,particle_cylinder_center,random_seed)
     #------------|--------------|------|-------------------
     # Parameters | Distribution | Mean | Standard Deviation
     #------------|--------------|------|-------------------
@@ -177,14 +179,14 @@ def run_analysis():
     wind_field_params[3]  =  Vm/ wind_field_params[0] #    S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
     wind_field_params[4]  = 2.0   #         gamma: 
     wind_field_params[5]  = 1.293*kg/pow(m,3) # [kg/m^3] rho0: reference density of air at STP
-    wind_field_params[6]  = 10.0*m  # [m]       xc0: x-position of the vortex center
-    wind_field_params[7]  = 0.0*m   # [m]       yc0: y-position of the vortex center
-    wind_field_params[8]  = 0.0 *m  # [m]       zc0: z-position of the vortex center
+    wind_field_params[6]  = particle_cylinder_center[0]  # [m]       xc0: x-position of the vortex center
+    wind_field_params[7]  = particle_cylinder_center[1]  # [m]       yc0: y-position of the vortex center
+    wind_field_params[8]  = particle_cylinder_center[2] # [m]       zc0: z-position of the vortex center
     wind_field_params[9]  = 0.0*m/sec   # [m/s]     vxc: x-velocity of the vortex center
     wind_field_params[10] = 0.0*m/sec   # [m/s]     vyc: y-velocity of the vortex center
     wind_field_params[11] = 0.0*m/sec   # [m/s]     vzc: z-velocity of the vortex center
     SWIRL.API.define_wind_field(b"BakerSterlingVortex",wind_field_params)
-    SWIRL.get_wind_field_data()
+    # SWIRL.API.get_wind_field_data()
 
     # Create a Rankine vortex
     #wind_field_params = np.zeros(12)
@@ -401,6 +403,23 @@ def run_analysis():
     # exit()
 
     # =============================================================================
+    # # # Static analysis (To initilize wind load) -------------------------------
+    # =============================================================================
+    Static_step = 10
+    D_Gravity = 1/Static_step
+
+    op.constraints('Plain')    
+    op.numberer('RCM')       
+    op.system('BandGeneral')      
+    op.test('NormDispIncr', 1.0e-6, 6)
+    op.algorithm('Newton')
+    op.integrator('LoadControl',D_Gravity)
+    op.analysis('Static')
+    op.analyze(Static_step)
+    op.loadConst('-time', 0.0)
+    print("Static Analysis Complete it initilizes wind load ")
+
+    # =============================================================================
     # Recorder for max displacement at the top and base reaction
     # =============================================================================
     free_file = os.path.join(dataDir, "DFree.out")
@@ -517,8 +536,6 @@ def run_analysis():
     # op.analyze(nPts,dt)   
     # finalize the ParticleDynamics module (close the Exodus files)
     SWIRL.finalize()
-
-
     # =============================================================================
     # # # Plotting Displacement at the top point ----------------------------------
     # =============================================================================
@@ -625,5 +642,6 @@ def process_results(responses1, simulation_data):
 if __name__ == "__main__":
     simulation_data = run_analysis()
     # print(sys.argv[1:])
+    argv =['drift_x','wind_IM']
     # Example usage: Provide responses like 'displacement_x', 'velocity_y', etc.
     process_results(sys.argv[1:], simulation_data)
