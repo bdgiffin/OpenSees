@@ -1,0 +1,15 @@
+
+paraview:84937 terminated with signal 6 at PC=7f5b14c8cb1c SP=7ffd665ced00.  Backtrace:
+/usr/bin/../lib/x86_64-linux-gnu/libc.so.6(pthread_kill+0x11c)[0x7f5b14c8cb1c]
+/usr/bin/../lib/x86_64-linux-gnu/libc.so.6(gsignal+0x1e)[0x7f5b14c3326e]
+/usr/bin/../lib/x86_64-linux-gnu/libc.so.6(abort+0xdf)[0x7f5b14c168ff]
+/usr/bin/../lib/x86_64-linux-gnu/libQt5Core.so.5(+0x91104)[0x7f5b12b86104]
+/usr/bin/../lib/x86_64-linux-gnu/libQt5Gui.so.5(_ZN22QGuiApplicationPrivate25createPlatformIntegrationEv+0x17ad)[0x7f5b131a46dd]
+/usr/bin/../lib/x86_64-linux-gnu/libQt5Gui.so.5(_ZN22QGuiApplicationPrivate21createEventDispatcherEv+0x40)[0x7f5b131a4c20]
+/usr/bin/../lib/x86_64-linux-gnu/libQt5Core.so.5(_ZN23QCoreApplicationPrivate4initEv+0x8e5)[0x7f5b12dd3ff5]
+/usr/bin/../lib/x86_64-linux-gnu/libQt5Gui.so.5(_ZN22QGuiApplicationPrivate4initEv+0x2f)[0x7f5b131a7b9f]
+/usr/bin/../lib/x86_64-linux-gnu/libQt5Widgets.so.5(_ZN19QApplicationPrivate4initEv+0x15)[0x7f5b1420c5b5]
+paraview(+0x112c4)[0x55fbaec902c4]
+/usr/bin/../lib/x86_64-linux-gnu/libc.so.6(+0x2a1ca)[0x7f5b14c181ca]
+/usr/bin/../lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b)[0x7f5b14c1828b]
+paraview(+0x9b05)[0x55fbaec88b05]

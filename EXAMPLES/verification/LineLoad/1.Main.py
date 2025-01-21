@@ -133,16 +133,27 @@ for i in range(0,n_joints):
 # =============================================================================
 # Call C/C++ library API functions from Python:
 # Define randomized spherical particle parameters
-n_particles = 1
+n_particles = 100
 particle_density         =  0.5*kg/pow(m,3) # [kg/m^3] (roughly the density of wood)
 particle_min_diameter    = 0.01*m # [m]
 particle_diameter_range  =  1.0*m # [m]
 particle_cylinder_radius = 50.0*m # [m]
 particle_cylinder_height = 25.25*m # [m]
-particle_cylinder_center = [20.0*m,20.0*m,0.0*m] # [m,m,m]
+particle_cylinder_center = [0.0*m,0.0*m,0.0*m] # [m,m,m]
 random_seed = 1
 SWIRL.create_random_particles(n_particles,particle_density,particle_min_diameter,particle_diameter_range,particle_cylinder_radius,particle_cylinder_height,particle_cylinder_center,random_seed)
 
+
+#------------|----------------|
+# EF Rating  | | 3S Gust(mph) | 
+#------------|----------------|
+# 0          | 65-85          | 
+# 1          | 86-110         |
+# 2          | 111-135        |
+# 3          | 136-165        | 
+# 4          | 166-200        |  
+# 5          | Over 200       |    
+#------------|----------------|
 
 #------------|--------------|------|-------------------
 # Parameters | Distribution | Mean | Standard Deviation
@@ -394,7 +405,7 @@ print("Height of the tower is ",Height)
 # =============================================================================
 # # # Static analysis (To initilize wind load) -------------------------------
 # =============================================================================
-Static_step = 10
+Static_step = 1
 D_Gravity = 1/Static_step
 
 op.constraints('Plain')    
@@ -447,7 +458,7 @@ op.wipeAnalysis()	 # clear previously-define analysis parameters
 tCurrent = op.getTime()
 time = tCurrent # [s] starting time
 dt   = 0.1 # [s] time increment
-nPts = 100
+nPts = 30
 tFinal = nPts*dt
 ok = 0
 
@@ -529,6 +540,10 @@ exit()
 # =============================================================================
 # # # Plotting ISDR ratio-----------------------------------------------------
 # =============================================================================
+# Formula for inter-Segmental Drift Ratio
+# ISDR(i) = max[{u_i(t)- u_i-1(t)}/{h_i(t)- h_i-1(t)}-Thita_i-1(t)]
+
+
 # output_file = os.path.join(dataDir, "drift_data_output.out")
 # max_file =  os.path.join(dataDir, "drift_max.out")
 # max_abs_drift_x = 0

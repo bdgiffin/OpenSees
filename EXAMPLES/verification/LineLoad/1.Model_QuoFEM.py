@@ -140,13 +140,13 @@ def run_analysis():
     # =============================================================================
     # Command-Line for Defining properties of fluid and particles
     # =============================================================================
-    n_particles = 1000
+    n_particles = 0
     particle_density         =  0.5*kg/pow(m,3) # [kg/m^3] (roughly the density of wood)
     particle_min_diameter    = 0.01*m # [m]
     particle_diameter_range  =  1.0*m # [m]
     particle_cylinder_radius = 50.0*m # [m]
     particle_cylinder_height = 25.25*m # [m]
-    particle_cylinder_center = [50.0*m,0.0*m,0.0*m] # [m,m,m]
+    particle_cylinder_center = [position_X*m,position_Y*m,0.0*m] # [m,m,m]
     file_path = os.path.join('out_data.csv')
     print(file_path)
     random_seed = 1
@@ -172,19 +172,18 @@ def run_analysis():
 
     # Create the parameterized wind field model (Baker Sterling Vortex)
     wind_field_params = np.zeros(12)
-    wind_field_params[0]  = Radial_wind_vel*m/sec # [m/s]      Um: reference radial velocity
-    Vm = Tangential_wind_vel
-    wind_field_params[1]  = Ref_Radius*m   # [m]        rm: reference radius
-    wind_field_params[2]  = Ref_Height*m  # [m]        zm: reference height
-    wind_field_params[3]  =  Vm/ wind_field_params[0] #    S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
-    wind_field_params[4]  = 2.0   #         gamma: 
-    wind_field_params[5]  = 1.293*kg/pow(m,3) # [kg/m^3] rho0: reference density of air at STP
-    wind_field_params[6]  = particle_cylinder_center[0]  # [m]       xc0: x-position of the vortex center
-    wind_field_params[7]  = particle_cylinder_center[1]  # [m]       yc0: y-position of the vortex center
+    wind_field_params[0]  = Radial_wind_vel*m/sec       # [m/s]      Um: reference radial velocity
+    wind_field_params[1]  = Ref_Radius*m                # [m]        rm: reference radius
+    wind_field_params[2]  = Ref_Height*m                # [m]        zm: reference height
+    wind_field_params[3]  = S_Ratio                     #    S: swirl ratio (ratio of max circumferential velocity to radial velocity at reference height)
+    wind_field_params[4]  = 2.0                         #         gamma: 
+    wind_field_params[5]  = 1.293*kg/pow(m,3)           # [kg/m^3] rho0: reference density of air at STP
+    wind_field_params[6]  = particle_cylinder_center[0] # [m]       xc0: x-position of the vortex center
+    wind_field_params[7]  = particle_cylinder_center[1] # [m]       yc0: y-position of the vortex center
     wind_field_params[8]  = particle_cylinder_center[2] # [m]       zc0: z-position of the vortex center
-    wind_field_params[9]  = 0.0*m/sec   # [m/s]     vxc: x-velocity of the vortex center
-    wind_field_params[10] = 0.0*m/sec   # [m/s]     vyc: y-velocity of the vortex center
-    wind_field_params[11] = 0.0*m/sec   # [m/s]     vzc: z-velocity of the vortex center
+    wind_field_params[9]  = 0.0*m/sec                   # [m/s]     vxc: x-velocity of the vortex center
+    wind_field_params[10] = 0.0*m/sec                   # [m/s]     vyc: y-velocity of the vortex center
+    wind_field_params[11] = 0.0*m/sec                   # [m/s]     vzc: z-velocity of the vortex center
     SWIRL.API.define_wind_field(b"BakerSterlingVortex",wind_field_params)
     # SWIRL.API.get_wind_field_data()
 
@@ -377,6 +376,25 @@ def run_analysis():
     push = push[push[:, 1].argsort()]
     Height = push[-1][1]-push[0][1]
     print("Height of the tower is ",Height)
+
+    # =============================================================================
+    # Recorder for max displacement at the top and base reaction
+    # =============================================================================
+    free_file = os.path.join(dataDir, "DFree.out")
+    fixed_file = os.path.join(dataDir, "DFixed.out")
+    react = os.path.join(dataDir, "RXN.out")
+
+    ISDR = [77,131,11,12,31,32,33,43,44,67,72,70,75,77,131]
+   
+    for i in range(len(ISDR)):
+        file_name = f"node_{ISDR[i]}_drift.out"  # Or customize the file name as needed
+        file_path = os.path.join(dataDir, file_name)
+        op.recorder("Node", '-file', file_path, 'time', '-node', int(ISDR[i]), '-precision', 3, '-time', '-dof', 1, 2, 'disp')
+
+    op.recorder("Node", '-file', free_file, 'time', '-node', int(push[-1][0]),'-precision',3, '-time' ,'-dof', 1, 'disp')
+    op.recorder("Node", '-file', fixed_file, 'time', '-node', int(push[0][0]),'-precision',3, '-time' ,'-dof', 1, 'disp')
+    op.recorder("Node", '-file', react, 'time', '-node', int(push[0][0]), '-precision',3,'-time', '-dof', 1, 'reaction')
+    
     # =============================================================================
     # For 3-d Visualization
     # =============================================================================
@@ -416,26 +434,8 @@ def run_analysis():
     op.integrator('LoadControl',D_Gravity)
     op.analysis('Static')
     op.analyze(Static_step)
+    print("Static Analysis Complete it initilizes wind load time = ", op.getTime())
     op.loadConst('-time', 0.0)
-    print("Static Analysis Complete it initilizes wind load ")
-
-    # =============================================================================
-    # Recorder for max displacement at the top and base reaction
-    # =============================================================================
-    free_file = os.path.join(dataDir, "DFree.out")
-    fixed_file = os.path.join(dataDir, "DFixed.out")
-    react = os.path.join(dataDir, "RXN.out")
-
-    ISDR = [77,131]#[11,12]#,31,32,33,43,44,67,72,70,75,77,131]
-    for i in range(len(ISDR)):
-        file_name = f"node_{ISDR[i]}_drift.out"  # Or customize the file name as needed
-        file_path = os.path.join(dataDir, file_name)
-        op.recorder("Node", '-file', file_path, 'time', '-node', int(ISDR[i]), '-precision', 3, '-time', '-dof', 1, 2, 'disp')
-
-    op.recorder("Node", '-file', free_file, 'time', '-node', int(push[-1][0]),'-precision',3, '-time' ,'-dof', 1, 'disp')
-    op.recorder("Node", '-file', fixed_file, 'time', '-node', int(push[0][0]),'-precision',3, '-time' ,'-dof', 1, 'disp')
-    op.recorder("Node", '-file', react, 'time', '-node', int(push[0][0]), '-precision',3,'-time', '-dof', 1, 'reaction')
-
     # output_directory = 'LineLoadTest_PVD'
     # # output position-velocity-displacement (PVD) data
     # op.recorder('PVD', output_directory, 'disp', 'reaction' ,'unbalancedLoad')
@@ -460,30 +460,30 @@ def run_analysis():
     tFinal = nPts*dt
     ok = 0
 
-    op.timeSeries("Linear", 2)
-    op.pattern("Plain", 2, 2)
+    # op.timeSeries("Linear", 2)
+    # op.pattern("Plain", 2, 2)
 
-    #New analysis 
-    Constrant_Type = "Transformation" 
-    numberer_Type = "RCM"
-    system_type = "BandGeneral"
-    Integrator_type = "Newmark"
-    N_Gamma = 0.5
-    N_Beta = 0.25
-    analysis_type = "Transient"
-    Tol = math.exp(-3)
-    maxNumIter = 10
-    test = {1:'NormDispIncr', 2: 'RelativeEnergyIncr', 3:'EnergyIncr', 4: 'RelativeNormUnbalance',5: 'RelativeNormDispIncr', 6: 'NormUnbalance'}
-    algorithm = {1:'KrylovNewton', 2: 'SecantNewton' , 3:'ModifiedNewton' , 4: 'RaphsonNewton',5: 'PeriodicNewton', 6: 'BFGS', 7: 'Broyden', 8: 'NewtonLineSearch'}
+    # #New analysis 
+    # Constrant_Type = "Transformation" 
+    # numberer_Type = "RCM"
+    # system_type = "BandGeneral"
+    # Integrator_type = "Newmark"
+    # N_Gamma = 0.5
+    # N_Beta = 0.25
+    # analysis_type = "Transient"
+    # Tol = math.exp(-3)
+    # maxNumIter = 10
+    # test = {1:'NormDispIncr', 2: 'RelativeEnergyIncr', 3:'EnergyIncr', 4: 'RelativeNormUnbalance',5: 'RelativeNormDispIncr', 6: 'NormUnbalance'}
+    # algorithm = {1:'KrylovNewton', 2: 'SecantNewton' , 3:'ModifiedNewton' , 4: 'RaphsonNewton',5: 'PeriodicNewton', 6: 'BFGS', 7: 'Broyden', 8: 'NewtonLineSearch'}
 
                 
-    op.constraints(Constrant_Type)    # how it handles boundary conditions
-    op.numberer(numberer_Type)        # renumber dof's to minimize band-width (optimization), if you want to
-    op.system(system_type)            # how to store and solve the system of equations in the analysis
-    op.test(test[1], Tol, 1000, 0)
-    op.algorithm(algorithm[3])
-    op.integrator(Integrator_type,0.5,0.25)
-    op.analysis(analysis_type)
+    # op.constraints(Constrant_Type)    # how it handles boundary conditions
+    # op.numberer(numberer_Type)        # renumber dof's to minimize band-width (optimization), if you want to
+    # op.system(system_type)            # how to store and solve the system of equations in the analysis
+    # op.test(test[1], Tol, 1000, 0)
+    # op.algorithm(algorithm[3])
+    # op.integrator(Integrator_type,0.5,0.25)
+    # op.analysis(analysis_type)
 
     # while tCurrent < tFinal:
     # #    ok = op.analyze(1, .01)     
@@ -509,9 +509,19 @@ def run_analysis():
     #                     time.append(tCurrent)
     #                     print(test[i], algorithm[j], 'tCurrent=', tCurrent)
 
-    xx = np.array([0.0, 0.0, 0.0, 0.0, *[3.35] * 4, *[1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4, *[3.35] * 4, *[1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4])
-    xy = np.array([0.0, 0.0, 0.0, 0.0, *[3.35] * 4, *[1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4, *[3.35] * 4, *[1.52/2] * 4])
-    xz = np.array([*[15.24, 18.44, 21.64, 25.25] * 9])
+    # =============================================================================
+    # # # Finding the velocity of wind at the structure -----------------------------
+    # =============================================================================
+    # xx = np.array([0.0, 0.0, 0.0, 0.0, *[3.35] * 4, *[1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4, *[3.35] * 4, *[1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4])
+    # xy = np.array([0.0, 0.0, 0.0, 0.0, *[3.35] * 4, *[1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4, *[-3.35] * 4, *[-1.52/2] * 4, *[3.35] * 4, *[1.52/2] * 4])
+    # xz = np.array([*[15.24, 18.44, 21.64, 25.25] * 9])
+
+    xx = np.array([ 0.0])
+    xy = np.array([ 0.0])
+    xz = np.array([25.25])
+
+
+
     points1 = len(xx)
     vx=np.zeros(points1,dtype='float64')
     vy =np.zeros(points1,dtype='float64')
@@ -521,17 +531,15 @@ def run_analysis():
     SWIRL.API.update_state(time) # required for initialization
     SWIRL.output_state(time)
     SWIRL.API.get_wind_field_data(points1,xx,xy,xz,vx,vy,vz,rho)
-    radial_wind = np.sqrt(np.mean(vx)**2 + np.mean(vy)**2)
+    tor_angle = math.atan2(position_Y - 0, position_X - 0)
+    radial_wind = vx*math.cos(tor_angle) +vy*math.sin(tor_angle)
     print("The intensity measure of the wind is",radial_wind)
-
-
-
-    for step_id in range(nPts):
-        time = time + dt
-        print(time)
-        op.analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
-        SWIRL.API.update_state(time)
-        SWIRL.output_state(time)
+    # for step_id in range(nPts):
+    #     time = time + dt
+    #     print(time)
+    #     op.analyze(1,dt) # apply 1 time step of size dt in the opensees analysis
+    #     SWIRL.API.update_state(time)
+    #     SWIRL.output_state(time)
     
     # op.analyze(nPts,dt)   
     # finalize the ParticleDynamics module (close the Exodus files)
@@ -553,6 +561,7 @@ def run_analysis():
 
     # =============================================================================
     # # # Plotting ISDR ratio-----------------------------------------------------
+    # ISDR(i) = max[{u_i(t)- u_i-1(t)}/{h_i(t)- h_i-1(t)}-Thita_i-1(t)]
     # =============================================================================
     output_file = os.path.join(dataDir, "drift_data_output.out")
     max_file =  os.path.join(dataDir, "drift_max.out")
@@ -582,7 +591,7 @@ def run_analysis():
             Disp2 = np.loadtxt(file_path2)
             
             # Corrected drift calculation
-            Drift_x = (Disp1[:, 1] - Disp2[:, 1]) / (z_value1 - z_value2)  # X-direction drift
+            Drift_x = (Disp1[:, 1] - Disp2[:, 1]) / (z_value1 - z_value2)   # X-direction drift
             Drift_y = (Disp1[:, 2] - Disp2[:, 2]) / (z_value1 - z_value2)  # Y-direction drift
             
             max_abs_drift_x = max(max_abs_drift_x, np.max(np.abs(Drift_x)))
@@ -612,12 +621,14 @@ def run_analysis():
     # plt.ylabel("Inter-Segmental Drift Ratio", fontsize=14)
     # plt.title("ISDR time history", fontsize=16)
     # plt.show()
-    with open(max_file, 'a') as summary_out:
-        summary_out.write(f"{Radial_wind_vel}\t{max_abs_drift_x}\t{max_abs_drift_y} \n")
+    with open(max_file, 'w') as summary_out:
+        summary_out.write(f"{radial_wind}\t{max_abs_drift_x}\t{max_abs_drift_y} \n")
+
 
     return{
         "drift_x": max_abs_drift_x,
         "drift_y": max_abs_drift_y,
+        'max_drift': max(max_abs_drift_x,max_abs_drift_y),
         "wind_IM": radial_wind,
     }
 
@@ -642,6 +653,7 @@ def process_results(responses1, simulation_data):
 if __name__ == "__main__":
     simulation_data = run_analysis()
     # print(sys.argv[1:])
-    argv =['drift_x','wind_IM']
+    argv =['max_drift','wind_IM']
     # Example usage: Provide responses like 'displacement_x', 'velocity_y', etc.
-    process_results(sys.argv[1:], simulation_data)
+    # process_results(sys.argv[1:], simulation_data)
+    process_results(argv, simulation_data)
